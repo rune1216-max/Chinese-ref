@@ -70,7 +70,7 @@ header::after {
 }
 .header-titles { line-height: 1.2; }
 .header-title { font-size: 1.15rem; color: #fff; font-weight: 900; letter-spacing: 0.5px; }
-.header-sub   { font-size: 0.72rem; color: rgba(201,168,76,0.9); font-weight: 400; letter-spacing: 1px; text-transform: uppercase; }
+.header-sub   { display: none; }
 
 .header-status {
   font-size: 0.75rem; color: rgba(255,255,255,0.5);
@@ -212,25 +212,25 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   background: var(--paper);
   border: 1.5px solid var(--mist);
   border-radius: 8px;
-  padding: 6px 12px;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
   cursor: default; transition: all 0.18s;
-  min-width: 64px;
+  min-width: 48px;
 }
 .word-chip:hover { border-color: var(--bamboo2); background: #f0f8e8; transform: translateY(-2px); box-shadow: 0 3px 10px rgba(74,124,47,0.15); }
 .word-chip .wc-hanzi {
   font-family: 'Noto Serif SC', serif;
-  font-size: 1.2rem; font-weight: 700; color: var(--ink);
+  font-size: 0.95rem; font-weight: 700; color: var(--ink);
 }
 .word-chip .wc-target {
-  color: var(--rust); /* highlight the searched char */
+  color: var(--rust);
 }
 .word-chip .wc-pinyin {
-  font-size: 0.68rem; color: #999; font-weight: 400;
+  display: none;
 }
 .word-chip .wc-meaning {
-  font-size: 0.7rem; color: var(--bamboo); font-weight: 600;
-  text-align: center; max-width: 80px; line-height: 1.2;
+  font-size: 0.62rem; color: var(--bamboo); font-weight: 500;
+  text-align: center; max-width: 72px; line-height: 1.2;
 }
 
 .no-result {
@@ -441,7 +441,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     <div class="header-logo">🐼</div>
     <div class="header-titles">
       <div class="header-title">汉字助手</div>
-     
+      <div class="header-sub">Teacher Tools · 教学辅助</div>
     </div>
   </div>
   <div class="header-status">
@@ -467,7 +467,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     <div class="threshold-row">
       <label>已学字数</label>
       <input type="number" class="threshold-input" id="threshold-input"
-             min="1" max="3500" placeholder="例：500">
+             min="1" max="3500" placeholder="例：527">
       <button class="threshold-save" onclick="saveThreshold()">保存</button>
       <span class="threshold-display" id="threshold-display">—</span>
     </div>
