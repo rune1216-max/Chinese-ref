@@ -1,0 +1,17 @@
+{
+  "name": "汉字助手 Teacher Tools",
+  "short_name": "汉字助手",
+  "description": "教师查字和注音辅助工具",
+  "start_url": "teacher.html",
+  "display": "standalone",
+  "background_color": "#f7f3eb",
+  "theme_color": "#2D5016",
+  "icons": [
+    {
+      "src": "panda.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
