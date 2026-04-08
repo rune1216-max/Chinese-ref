@@ -131,7 +131,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   display: flex; gap: 10px; align-items: center;
 }
 .search-input {
-  width: 210px;
+  width: 70px;
   flex: none;
   font-family: 'Noto Serif SC', serif;
   font-size: 1.5rem; font-weight: 700;
@@ -469,7 +469,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     <div class="threshold-row">
       <label>已学字数</label>
       <input type="number" class="threshold-input" id="threshold-input"
-             min="1" max="3500" placeholder="例：500">
+             min="1" max="3500" placeholder="例：527">
       <button class="threshold-save" onclick="saveThreshold()">保存</button>
       <span class="threshold-display" id="threshold-display">—</span>
     </div>
@@ -879,7 +879,7 @@ function annotateSentence() {
     // For display: take first pronunciation when multiple (from chars table)
     const displayPin = pinyin.split('/')[0].trim();
 
-    html += `<span class="ann-ruby"><span class="ruby-char">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">(${displayPin})</span></span>`;
+    html += `<span class="ann-ruby"><span class="ruby-char">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">（${displayPin}）</span></span>`;
   }
 
   const summaryColor = unknownCount === 0 ? 'var(--bamboo)' : 'var(--rust)';
