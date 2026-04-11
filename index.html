@@ -220,6 +220,21 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   min-width: 48px;
 }
 .word-chip:hover { border-color: var(--bamboo2); background: #f0f8e8; transform: translateY(-2px); box-shadow: 0 3px 10px rgba(74,124,47,0.15); }
+.word-chip { position: relative; }
+.word-chip .wc-delete {
+  display: none;
+  position: absolute; top: -7px; right: -7px;
+  width: 18px; height: 18px;
+  background: var(--rust); color: #fff;
+  border: none; border-radius: 50%;
+  font-size: 0.65rem; line-height: 18px; text-align: center;
+  cursor: pointer; font-weight: 900;
+  box-shadow: 0 2px 6px rgba(192,57,43,0.4);
+  padding: 0;
+  transition: transform 0.15s;
+}
+.word-chip:hover .wc-delete { display: block; }
+.word-chip .wc-delete:hover { transform: scale(1.2); }
 .word-chip .wc-hanzi {
   font-family: 'Noto Serif SC', serif;
   font-size: 0.95rem; font-weight: 700; color: var(--ink);
@@ -469,7 +484,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     <div class="threshold-row">
       <label>已学字数</label>
       <input type="number" class="threshold-input" id="threshold-input"
-             min="1" max="3500" placeholder="例：527">
+             min="1" max="3500" placeholder="例：500">
       <button class="threshold-save" onclick="saveThreshold()">保存</button>
       <span class="threshold-display" id="threshold-display">—</span>
     </div>
@@ -703,7 +718,8 @@ function searchChar() {
           c === ch ? `<span class="wc-target">${c}</span>` : c
         ).join('');
         return `
-          <div class="word-chip">
+          <div class="word-chip" id="chip-${w.word}">
+            <button class="wc-delete" onclick="deleteWord('${w.word}', event)" title="删除「${w.word}」">×</button>
             <div class="wc-hanzi">${highlighted}</div>
             ${w.pinyin ? `<div class="wc-pinyin">${w.pinyin}</div>` : ''}
             ${w.meaning ? `<div class="wc-meaning">${w.meaning}</div>` : ''}
@@ -728,6 +744,50 @@ function searchChar() {
         <div class="words-grid">${wordsHtml}</div>
       </div>
     </div>`;
+}
+
+// ── DELETE WORD ──────────────────────────────────────────────────────────────
+async function deleteWord(word, event) {
+  event.stopPropagation();
+  if (!confirm(`确定要删除「${word}」吗？此操作会直接修改 Google Sheets。`)) return;
+
+  const chip = document.getElementById('chip-' + word);
+  if (chip) { chip.style.opacity = '0.4'; chip.style.pointerEvents = 'none'; }
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteWord', word }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      // Remove from local arrays
+      allWordData = allWordData.filter(w => w.word !== word);
+      wordSet.delete(word);
+      delete wordPinyinMap[word];
+
+      // Clear cache and force fresh reload
+      localStorage.removeItem('chineseAppData');
+
+      // Remove chip from UI with animation
+      if (chip) {
+        chip.style.transition = 'all 0.3s';
+        chip.style.transform = 'scale(0)';
+        chip.style.opacity = '0';
+        setTimeout(() => chip.remove(), 300);
+      }
+
+      // Trigger background reload to refresh cache
+      reloadData();
+    } else {
+      alert('删除失败：' + data.message);
+      if (chip) { chip.style.opacity = '1'; chip.style.pointerEvents = ''; }
+    }
+  } catch (err) {
+    alert('网络错误，请重试');
+    if (chip) { chip.style.opacity = '1'; chip.style.pointerEvents = ''; }
+  }
 }
 
 // ── ANNOTATE ─────────────────────────────────────────────────────────────────
@@ -879,7 +939,7 @@ function annotateSentence() {
     // For display: take first pronunciation when multiple (from chars table)
     const displayPin = pinyin.split('/')[0].trim();
 
-    html += `<span class="ann-ruby"><span class="ruby-char">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">（${displayPin}）</span></span>`;
+    html += `<span class="ann-ruby"><span class="ruby-char">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">(${displayPin})</span></span>`;
   }
 
   const summaryColor = unknownCount === 0 ? 'var(--bamboo)' : 'var(--rust)';
