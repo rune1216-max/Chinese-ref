@@ -443,12 +443,48 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 }
 .action-btn:hover { background: #f0f8e8; border-color: var(--bamboo); }
 
-@media (max-width: 480px) {
-  .char-big { font-size: 3.5rem; }
-  .char-pinyin { font-size: 1.2rem; }
-  .sentence-input { font-size: 1.2rem; }
-  .ann-known, .ann-ruby .ruby-char, .ann-punct { font-size: 1.5rem; }
+/* ── LEARNED CHARACTERS ── */
+.learned-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
 }
+.learned-header-info {
+  font-size: 0.78rem; font-weight: 700; color: var(--bamboo);
+}
+.learned-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 8px;
+}
+.learned-tile {
+  background: var(--card);
+  border: 1.5px solid var(--mist);
+  border-radius: 10px;
+  padding: 10px 4px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; transition: all 0.18s;
+  text-align: center;
+}
+.learned-tile:hover {
+  border-color: var(--bamboo2); background: #f0f8e8;
+  transform: translateY(-2px); box-shadow: 0 3px 10px rgba(74,124,47,0.15);
+}
+.learned-tile .lt-char {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.5rem; font-weight: 700; color: var(--ink); line-height: 1;
+}
+.learned-tile .lt-pinyin {
+  font-size: 0.62rem; color: var(--bamboo); font-weight: 600; letter-spacing: 0.3px;
+}
+.learned-tile .lt-no {
+  font-size: 0.58rem; color: #bbb; font-weight: 400;
+}
+
+@media (max-width: 480px) {
+  .learned-grid { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; }
+  .learned-tile .lt-char { font-size: 1.3rem; }
+}
+
 </style>
 </head>
 <body>
@@ -473,6 +509,9 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   </button>
   <button class="tab" onclick="switchTab('annotate')" id="tab-annotate">
     📝 注音批注
+  </button>
+  <button class="tab" onclick="switchTab('learned')" id="tab-learned">
+    📚 已学字表
   </button>
 </div>
 
@@ -540,6 +579,15 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     </div>
 
   </div>
+  <!-- ══ PANEL 3: Learned Characters ══ -->
+  <div class="panel" id="panel-learned">
+    <div id="learned-result">
+      <div class="empty-state">
+        <span class="e-icon">📚</span>
+        <p>请先设置已学字数阈值，并加载数据。</p>
+      </div>
+    </div>
+  </div>
 
 </main>
 
@@ -568,6 +616,48 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'learned') renderLearnedChars();
+}
+
+// ── LEARNED CHARACTERS ───────────────────────────────────────────────────────
+function renderLearnedChars() {
+  const container = document.getElementById('learned-result');
+
+  if (allCharData.length === 0) {
+    container.innerHTML = `<div class="empty-state"><span class="e-icon">⚠️</span><p>数据未加载，请先点击「重新加载数据」</p></div>`;
+    return;
+  }
+  if (threshold === 9999) {
+    container.innerHTML = `<div class="empty-state"><span class="e-icon">📚</span><p>请先在「字典查询」页设置已学字数阈值。</p></div>`;
+    return;
+  }
+
+  // Filter chars within threshold, sort descending (most recent first)
+  const learned = allCharData
+    .filter(c => c.serialNo <= threshold)
+    .sort((a, b) => b.serialNo - a.serialNo);
+
+  const tilesHtml = learned.map(c => {
+    const pinyin = c.pinyin.split('/')[0].trim();
+    return `
+      <div class="learned-tile" onclick="jumpToSearch('${c.character}')">
+        <div class="lt-char">${c.character}</div>
+        <div class="lt-pinyin">${pinyin}</div>
+        <div class="lt-no">#${c.serialNo}</div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="learned-header">
+      <span class="learned-header-info">📚 已学 ${learned.length} 个字（序号 1–${threshold}），最近学的在前</span>
+    </div>
+    <div class="learned-grid">${tilesHtml}</div>`;
+}
+
+function jumpToSearch(ch) {
+  switchTab('search');
+  document.getElementById('char-input').value = ch;
+  searchChar();
 }
 
 // ── THRESHOLD ───────────────────────────────────────────────────────────────
