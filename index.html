@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🐼 汉字助手</title>
-<link rel="manifest" href="teacher-manifest.json">
+<title>汉字助手</title>
+<!-- manifest only works when served over http, not file:// -->
+<!-- <link rel="manifest" href="teacher-manifest.json"> -->
 <meta name="theme-color" content="#2D5016">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -62,11 +63,15 @@ header::after {
 
 .header-left { display: flex; align-items: center; gap: 12px; }
 .header-logo {
-  width: 42px; height: 42px; border-radius: 50%;
-  border: 2px solid rgba(201,168,76,0.6);
+  width: 38px; height: 38px; border-radius: 8px;
+  border: 1.5px solid rgba(201,168,76,0.5);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.4rem; background: rgba(255,255,255,0.08);
+  background: rgba(201,168,76,0.12);
   flex-shrink: 0;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--gold);
+  letter-spacing: -1px;
 }
 .header-titles { line-height: 1.2; }
 .header-title { font-size: 1.15rem; color: #fff; font-weight: 900; letter-spacing: 0.5px; }
@@ -480,18 +485,27 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   font-size: 0.58rem; color: #bbb; font-weight: 400;
 }
 
-@media (max-width: 480px) {
-  .learned-grid { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; }
-  .learned-tile .lt-char { font-size: 1.3rem; }
+/* ── CHAR MEANING (Claude API) ── */
+.char-meaning-section {
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--mist);
+  animation: fadeIn 0.4s ease;
+}
+.char-meaning-text {
+  font-size: 0.88rem; color: #4a4a4a; line-height: 1.7;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+.char-meaning-text .meaning-num {
+  color: var(--bamboo); font-weight: 700; margin-right: 2px;
 }
 
-</style>
+
 </head>
 <body>
 
 <header>
   <div class="header-left">
-    <div class="header-logo">🐼</div>
+    <div class="header-logo">汉字</div>
     <div class="header-titles">
       <div class="header-title">汉字助手</div>
       <div class="header-sub">Teacher Tools · 教学辅助</div>
@@ -740,6 +754,7 @@ async function reloadData() {
       pinyin:    String(r[ci.indexOf('pinyin')]    || '').trim(),
       serialNo:  parseInt(r[ci.indexOf('no')]      || r[2] || 9999),
       words:     String(r[ci.indexOf('words')]     || r[3] || '').split(/[,，]/).map(w => w.trim()).filter(Boolean),
+      meaning:   ci.indexOf('meaning') !== -1 ? String(r[ci.indexOf('meaning')] || '').trim() : '',
     })).filter(r => r.character && r.pinyin);
 
     const [wordHeader, ...wordRows] = data.words;
@@ -829,14 +844,92 @@ function searchChar() {
           }
         </div>
       </div>
+      <div id="char-meaning-container"></div>
       <div class="char-words-section">
         <div class="section-title">Words · 组词（共 ${matchedWords.length} 个）</div>
         <div class="words-grid">${wordsHtml}</div>
       </div>
     </div>`;
+
+  // Async: fetch meaning from Claude API (silent fallback if unavailable)
+  fetchCharMeaning(ch);
 }
 
-// ── DELETE WORD ──────────────────────────────────────────────────────────────
+// ── FETCH CHAR MEANING (Claude API, silent fallback) ─────────────────────────
+const meaningCache = {}; // in-memory cache; also backed by localStorage
+
+function getMeaningCacheKey(ch) { return 'charMeaning_' + ch; }
+
+async function fetchCharMeaning(ch) {
+  const container = document.getElementById('char-meaning-container');
+  if (!container) return;
+
+  // 1. Sheet meaning takes priority (already loaded, no network needed)
+  const charEntry = charMap[ch];
+  if (charEntry && charEntry.meaning) {
+    renderMeaning(container, charEntry.meaning);
+    return;
+  }
+
+  // 2. Check in-memory cache (from previous API call this session)
+  if (meaningCache[ch]) { renderMeaning(container, meaningCache[ch]); return; }
+
+  // 3. Check localStorage cache (from previous API call, persisted)
+  try {
+    const stored = localStorage.getItem(getMeaningCacheKey(ch));
+    if (stored) {
+      meaningCache[ch] = stored;
+      renderMeaning(container, stored);
+      return;
+    }
+  } catch(e) {}
+
+  // 4. Fetch from Claude API (silent fallback if unavailable)
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `请用简明的中文解释汉字「${ch}」的字义。格式要求：
+- 列出1到3个主要义项（如有多个）
+- 每个义项用①②③开头
+- 每条不超过20字，简洁直白，适合语言教学
+- 只输出义项，不要任何其他文字、标题或解释`
+        }]
+      })
+    });
+
+    if (!resp.ok) return; // silent fail
+
+    const data = await resp.json();
+    const text = (data.content || []).map(b => b.text || '').join('').trim();
+    if (!text) return;
+
+    // Cache it
+    meaningCache[ch] = text;
+    try { localStorage.setItem(getMeaningCacheKey(ch), text); } catch(e) {}
+
+    renderMeaning(container, text);
+  } catch(e) {
+    // Network error or API down — stay silent, no UI change
+  }
+}
+
+function renderMeaning(container, text) {
+  if (!container || !text) return;
+  // Format: replace ①②③ with styled spans
+  const formatted = text.replace(/(①|②|③)/g, '<span class="meaning-num">$1</span>');
+  container.innerHTML = `
+    <div class="char-meaning-section">
+      <div class="char-meaning-text">${formatted}</div>
+    </div>`;
+}
+
+
 async function deleteWord(word, event) {
   event.stopPropagation();
   if (!confirm(`确定要删除「${word}」吗？此操作会直接修改 Google Sheets。`)) return;
