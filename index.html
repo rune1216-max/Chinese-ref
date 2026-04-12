@@ -855,74 +855,13 @@ function searchChar() {
   fetchCharMeaning(ch);
 }
 
-// ── FETCH CHAR MEANING (Claude API, silent fallback) ─────────────────────────
-const meaningCache = {}; // in-memory cache; also backed by localStorage
-
-function getMeaningCacheKey(ch) { return 'charMeaning_' + ch; }
-
-async function fetchCharMeaning(ch) {
+// ── CHAR MEANING (from Google Sheet only) ────────────────────────────────────
+function fetchCharMeaning(ch) {
   const container = document.getElementById('char-meaning-container');
   if (!container) return;
-
-  // 1. Sheet meaning takes priority (already loaded, no network needed)
   const charEntry = charMap[ch];
-  if (charEntry && charEntry.meaning) {
-    renderMeaning(container, charEntry.meaning);
-    return;
-  }
-
-  // 2. Check in-memory cache (from previous API call this session)
-  if (meaningCache[ch]) { renderMeaning(container, meaningCache[ch]); return; }
-
-  // 3. Check localStorage cache (from previous API call, persisted)
-  try {
-    const stored = localStorage.getItem(getMeaningCacheKey(ch));
-    if (stored) {
-      meaningCache[ch] = stored;
-      renderMeaning(container, stored);
-      return;
-    }
-  } catch(e) {}
-
-  // 4. Fetch from Claude API (silent fallback if unavailable)
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: `请用简明的中文解释汉字「${ch}」的字义。格式要求：
-- 列出1到3个主要义项（如有多个）
-- 每个义项用①②③开头
-- 每条不超过20字，简洁直白，适合语言教学
-- 只输出义项，不要任何其他文字、标题或解释`
-        }]
-      })
-    });
-
-    if (!resp.ok) return; // silent fail
-
-    const data = await resp.json();
-    const text = (data.content || []).map(b => b.text || '').join('').trim();
-    if (!text) return;
-
-    // Cache it
-    meaningCache[ch] = text;
-    try { localStorage.setItem(getMeaningCacheKey(ch), text); } catch(e) {}
-
-    renderMeaning(container, text);
-  } catch(e) {
-    // Network error or API down — stay silent, no UI change
-  }
-}
-
-function renderMeaning(container, text) {
-  if (!container || !text) return;
-  // Format: replace ①②③ with styled spans
-  const formatted = text.replace(/(①|②|③)/g, '<span class="meaning-num">$1</span>');
+  if (!charEntry || !charEntry.meaning) return; // no meaning in sheet → stay silent
+  const formatted = charEntry.meaning.replace(/(①|②|③)/g, '<span class="meaning-num">$1</span>');
   container.innerHTML = `
     <div class="char-meaning-section">
       <div class="char-meaning-text">${formatted}</div>
