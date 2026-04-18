@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>汉字助手</title>
 <!-- manifest only works when served over http, not file:// -->
- <link rel="manifest" href="teacher-manifest.json">
+<link rel="manifest" href="teacher-manifest.json">
 <meta name="theme-color" content="#2D5016">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -500,6 +500,59 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   color: var(--bamboo); font-weight: 700; margin-right: 2px;
 }
 
+/* ── TEST HISTORY (in search result card) ── */
+.test-history-section {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--mist);
+}
+.test-history-dots {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; align-items: center;
+}
+.test-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700;
+}
+.test-dot.correct   { background: #d4edda; color: #2d6a3f; }
+.test-dot.incorrect { background: #fde8e8; color: #a93226; }
+.test-history-empty { font-size: 0.78rem; color: #bbb; margin-top: 4px; }
+
+/* ── TEST BUTTONS on learned tile ── */
+.lt-test-btns {
+  display: flex; gap: 4px; margin-top: 4px;
+}
+.lt-test-btn {
+  flex: 1; padding: 2px 0;
+  border: 1.5px solid var(--mist); border-radius: 6px;
+  font-size: 0.75rem; font-weight: 900;
+  cursor: pointer; background: var(--paper);
+  transition: all 0.15s; line-height: 1.4;
+}
+.lt-test-btn.correct-btn   { color: #2d6a3f; }
+.lt-test-btn.incorrect-btn { color: #a93226; }
+.lt-test-btn.correct-btn:hover   { background: #d4edda; border-color: #2d6a3f; }
+.lt-test-btn.incorrect-btn:hover { background: #fde8e8; border-color: #a93226; }
+
+/* ── TILE COLOUR based on recent test performance ── */
+/* Applied via JS: data-perf="good|bad|mixed|none" */
+.learned-tile[data-perf="good-strong"]  { background: #c8e6c9; border-color: #81c784; }
+.learned-tile[data-perf="good-weak"]    { background: #e8f5e9; border-color: #a5d6a7; }
+.learned-tile[data-perf="bad-strong"]   { background: #ffcdd2; border-color: #e57373; }
+.learned-tile[data-perf="bad-weak"]     { background: #fde8e8; border-color: #ef9a9a; }
+.learned-tile[data-perf="mixed"]        { background: #fff9e6; border-color: #ffe082; }
+
+/* ── SYNC BUTTON ── */
+.sync-btn {
+  padding: 7px 16px;
+  background: var(--card); border: 1.5px solid var(--bamboo);
+  border-radius: 10px; color: var(--bamboo);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; transition: all 0.18s;
+}
+.sync-btn:hover { background: #f0f8e8; }
+.sync-btn:disabled { opacity: 0.5; cursor: default; }
+
 </style>
 </head>
 <body>
@@ -596,6 +649,10 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   </div>
   <!-- ══ PANEL 3: Learned Characters ══ -->
   <div class="panel" id="panel-learned">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;align-items:center;">
+      <span id="sync-status" style="font-size:0.75rem;color:#bbb;"></span>
+      <button class="sync-btn" id="sync-btn" onclick="syncTestsToSheets()">☁️ 同步到 Sheets</button>
+    </div>
     <div id="learned-result">
       <div class="empty-state">
         <span class="e-icon">📚</span>
@@ -619,10 +676,14 @@ let charMap = {};       // char → { pinyin, serialNo, words }
 let wordSet = new Set();// all words as strings
 let wordPinyinMap = {}; // word-string → pinyin
 
+// Test records: { char → [ {timestamp, result} ] }
+let testData = {};      // loaded from localStorage 'chineseTestData'
+
 // ── INIT ────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   loadThreshold();
   loadCachedData();
+  loadTestData();
 });
 
 // ── TABS ─────────────────────────────────────────────────────────────────────
@@ -654,11 +715,16 @@ function renderLearnedChars() {
 
   const tilesHtml = learned.map(c => {
     const pinyin = c.pinyin.split('/')[0].trim();
+    const perf = getTilePerf(c.character);
     return `
-      <div class="learned-tile" onclick="jumpToSearch('${c.character}')">
+      <div class="learned-tile" data-perf="${perf}" onclick="jumpToSearch('${c.character}')">
         <div class="lt-char">${c.character}</div>
         <div class="lt-pinyin">${pinyin}</div>
         <div class="lt-no">#${c.serialNo}</div>
+        <div class="lt-test-btns" onclick="event.stopPropagation()">
+          <button class="lt-test-btn correct-btn"   onclick="recordTest('${c.character}',1)">✓</button>
+          <button class="lt-test-btn incorrect-btn" onclick="recordTest('${c.character}',0)">✗</button>
+        </div>
       </div>`;
   }).join('');
 
@@ -771,6 +837,7 @@ async function reloadData() {
 
     localStorage.setItem('chineseAppData', JSON.stringify({ allCharData, allWordData, savedAt: Date.now() }));
     buildMaps();
+    restoreTestsFromSheets(data.tests || []);
     setStatus('ok', `${allCharData.length} 字 · ${allWordData.length} 词`);
     btn.innerHTML = '✅ 加载完成';
     setTimeout(() => { btn.innerHTML = '🔄 重新加载数据'; btn.disabled = false; }, 2000);
@@ -846,6 +913,7 @@ function searchChar() {
         </div>
       </div>
       <div id="char-meaning-container"></div>
+      ${renderTestHistoryHtml(ch)}
       <div class="char-words-section">
         <div class="section-title">Words · 组词（共 ${matchedWords.length} 个）</div>
         <div class="words-grid">${wordsHtml}</div>
@@ -854,6 +922,144 @@ function searchChar() {
 
   // Async: fetch meaning from Claude API (silent fallback if unavailable)
   fetchCharMeaning(ch);
+}
+
+// ── TEST DATA ─────────────────────────────────────────────────────────────────
+
+function loadTestData() {
+  try {
+    const raw = localStorage.getItem('chineseTestData');
+    if (raw) testData = JSON.parse(raw);
+  } catch(e) {
+    testData = {};
+  }
+}
+
+function saveTestData() {
+  localStorage.setItem('chineseTestData', JSON.stringify(testData));
+}
+
+/**
+ * Record a test result for a character.
+ * result: 1 = correct, 0 = incorrect
+ */
+function recordTest(ch, result) {
+  if (!testData[ch]) testData[ch] = [];
+  testData[ch].push({ timestamp: Date.now(), result });
+  saveTestData();
+
+  // Update tile colour in-place without full re-render
+  const tiles = document.querySelectorAll(`.learned-tile`);
+  tiles.forEach(tile => {
+    const charEl = tile.querySelector('.lt-char');
+    if (charEl && charEl.textContent === ch) {
+      tile.dataset.perf = getTilePerf(ch);
+      // Brief flash feedback
+      const btn = result === 1
+        ? tile.querySelector('.correct-btn')
+        : tile.querySelector('.incorrect-btn');
+      if (btn) {
+        btn.style.background = result === 1 ? '#d4edda' : '#fde8e8';
+        setTimeout(() => { btn.style.background = ''; }, 600);
+      }
+    }
+  });
+
+  // If search result is showing this char, refresh test history
+  const histSection = document.getElementById('test-history-' + ch);
+  if (histSection) {
+    histSection.outerHTML = renderTestHistoryHtml(ch);
+  }
+}
+
+/**
+ * Returns data-perf value for a character tile based on last 5 tests.
+ */
+function getTilePerf(ch) {
+  const records = testData[ch];
+  if (!records || records.length === 0) return 'none';
+  const recent = records.slice(-5);
+  const correct = recent.filter(r => r.result === 1).length;
+  const rate = correct / recent.length;
+  const count = recent.length;
+  if (rate >= 0.8)  return count >= 3 ? 'good-strong' : 'good-weak';
+  if (rate <= 0.4)  return count >= 3 ? 'bad-strong'  : 'bad-weak';
+  return 'mixed';
+}
+
+/**
+ * Build HTML for test history section in search result card.
+ */
+function renderTestHistoryHtml(ch) {
+  const records = testData[ch] || [];
+  const dotsHtml = records.length === 0
+    ? `<span class="test-history-empty">暂无测试记录</span>`
+    : records.slice(-20).map(r =>
+        `<span class="test-dot ${r.result === 1 ? 'correct' : 'incorrect'}">${r.result === 1 ? '✓' : '✗'}</span>`
+      ).join('') + (records.length > 20 ? `<span style="font-size:0.72rem;color:#bbb;">…共${records.length}次</span>` : '');
+
+  return `
+    <div class="test-history-section" id="test-history-${ch}">
+      <div class="section-title" style="margin-bottom:0;">测试记录</div>
+      <div class="test-history-dots">${dotsHtml}</div>
+    </div>`;
+}
+
+/**
+ * Restore testData from Sheets if localStorage is empty.
+ * Called after reloadData() fetches fresh data.
+ */
+function restoreTestsFromSheets(testsRaw) {
+  if (!testsRaw || testsRaw.length <= 1) return; // empty or header only
+  const existing = localStorage.getItem('chineseTestData');
+  if (existing) return; // already have local data, don't overwrite
+  testData = {};
+  const [, ...rows] = testsRaw; // skip header row
+  rows.forEach(r => {
+    const ch = String(r[0] || '').trim();
+    const ts = Number(r[1]) || 0;
+    const res = Number(r[2]);
+    if (!ch) return;
+    if (!testData[ch]) testData[ch] = [];
+    testData[ch].push({ timestamp: ts, result: res });
+  });
+  saveTestData();
+}
+
+/**
+ * Sync all local test records to Google Sheets (full overwrite).
+ */
+async function syncTestsToSheets() {
+  const btn = document.getElementById('sync-btn');
+  const statusEl = document.getElementById('sync-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ 同步中…';
+  statusEl.textContent = '';
+
+  // Flatten testData into records array
+  const records = [];
+  Object.entries(testData).forEach(([ch, arr]) => {
+    arr.forEach(r => records.push({ char: ch, timestamp: r.timestamp, result: r.result }));
+  });
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'syncTests', records }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      statusEl.textContent = `✅ 已同步 ${records.length} 条`;
+      btn.textContent = '☁️ 同步到 Sheets';
+    } else {
+      statusEl.textContent = '❌ 同步失败';
+      btn.textContent = '☁️ 同步到 Sheets';
+    }
+  } catch(err) {
+    statusEl.textContent = '❌ 网络错误';
+    btn.textContent = '☁️ 同步到 Sheets';
+  }
+  btn.disabled = false;
 }
 
 // ── CHAR MEANING (from Google Sheet only) ────────────────────────────────────
