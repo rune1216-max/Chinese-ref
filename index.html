@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>汉字助手</title>
+<!-- manifest only works when served over http, not file:// -->
+<!-- <link rel="manifest" href="teacher-manifest.json"> -->
+<meta name="theme-color" content="#2D5016">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="汉字助手">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700;900&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink:     #1a1a2e;
+  --paper:   #f7f3eb;
+  --bamboo:  #4a7c2f;
+  --bamboo2: #6ba84a;
+  --gold:    #c9a84c;
+  --rust:    #c0392b;
+  --mist:    #e8e0d0;
+  --shadow:  rgba(26,26,46,0.12);
+  --card:    #fffdf8;
+  --r:       16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Noto Sans SC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* — texture overlay — */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(180,160,100,0.06) 30px),
+    repeating-linear-gradient(90deg, transparent, transparent 29px, rgba(180,160,100,0.04) 30px);
+}
+
+/* ── HEADER ── */
+header {
+  background: linear-gradient(135deg, #1a2f0e 0%, #2d5016 50%, #3d6b20 100%);
+  padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  position: relative; z-index: 10;
+}
+header::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--gold), #e8c96e, var(--gold));
+}
+
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-logo {
+  width: 38px; height: 38px; border-radius: 8px;
+  border: 1.5px solid rgba(201,168,76,0.5);
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(201,168,76,0.12);
+  flex-shrink: 0;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--gold);
+  letter-spacing: -1px;
+}
+.header-titles { line-height: 1.2; }
+.header-title { font-size: 1.15rem; color: #fff; font-weight: 900; letter-spacing: 0.5px; }
+.header-sub   { display: none; }
+
+.header-status {
+  font-size: 0.75rem; color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  padding: 4px 10px; border-radius: 20px;
+  display: flex; align-items: center; gap: 5px;
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #aaa;
+  transition: background 0.4s;
+}
+.status-dot.ok  { background: #6BCB77; box-shadow: 0 0 6px rgba(107,203,119,0.7); }
+.status-dot.err { background: var(--rust); }
+
+/* ── TABS ── */
+.tabs {
+  display: flex;
+  background: #fff; border-bottom: 2px solid var(--mist);
+  position: relative; z-index: 5;
+}
+.tab {
+  flex: 1; padding: 13px 8px; border: none; background: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.85rem; font-weight: 700; color: #aaa;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+}
+.tab.active { color: var(--bamboo); border-bottom-color: var(--bamboo); }
+.tab:hover:not(.active) { color: var(--bamboo2); background: rgba(74,124,47,0.04); }
+
+/* ── MAIN ── */
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 1; }
+
+.panel { display: none; animation: slideUp 0.3s ease; }
+.panel.active { display: block; }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── SEARCH BOX ── */
+.search-wrap {
+  background: var(--card);
+  border: 2px solid var(--mist);
+  border-radius: var(--r);
+  padding: 16px;
+  box-shadow: 0 4px 20px var(--shadow);
+  margin-bottom: 20px;
+  position: relative;
+}
+.search-label {
+  font-size: 0.75rem; font-weight: 700; color: var(--bamboo);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 8px; display: block;
+}
+.search-row {
+  display: flex; gap: 10px; align-items: center;
+}
+.search-input {
+  width: 210px;
+  flex: none;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.5rem; font-weight: 700;
+  padding: 10px 12px;
+  border: 2px solid var(--mist);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+  text-align: center;
+}
+.search-input:focus { border-color: var(--bamboo); }
+.search-input::placeholder { font-size: 0.85rem; color: #bbb; font-weight: 400; font-family: 'Noto Sans SC', sans-serif; }
+
+.search-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--bamboo), var(--bamboo2));
+  color: #fff; border: none; border-radius: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.95rem; font-weight: 700;
+  cursor: pointer; transition: all 0.18s;
+  white-space: nowrap;
+}
+.search-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(74,124,47,0.4); }
+.search-btn:active { transform: translateY(0); }
+
+/* ── CHARACTER RESULT CARD ── */
+.char-card {
+  background: var(--card);
+  border: 2px solid var(--mist);
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: 0 6px 28px var(--shadow);
+  animation: fadeIn 0.4s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.char-card-top {
+  background: linear-gradient(135deg, #1a2f0e, #2d5016);
+  padding: 24px;
+  display: flex; align-items: center; gap: 20px;
+}
+.char-big {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 4.5rem; font-weight: 700;
+  color: #fff; line-height: 1;
+  text-shadow: 2px 3px 8px rgba(0,0,0,0.4);
+  flex-shrink: 0;
+}
+.char-meta { flex: 1; }
+.char-pinyin {
+  font-size: 1.5rem; font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 4px;
+  letter-spacing: 1px;
+}
+.char-serial {
+  font-size: 0.82rem; color: rgba(255,255,255,0.5);
+  font-weight: 400;
+}
+.char-serial span { color: rgba(201,168,76,0.9); font-weight: 700; }
+
+.char-words-section { padding: 20px; }
+.section-title {
+  font-size: 0.75rem; font-weight: 700; color: var(--bamboo);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--bamboo), transparent);
+}
+
+.words-grid {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.word-chip {
+  background: var(--paper);
+  border: 1.5px solid var(--mist);
+  border-radius: 8px;
+  padding: 4px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  cursor: default; transition: all 0.18s;
+  min-width: 48px;
+}
+.word-chip:hover { border-color: var(--bamboo2); background: #f0f8e8; transform: translateY(-2px); box-shadow: 0 3px 10px rgba(74,124,47,0.15); }
+.word-chip { position: relative; }
+.word-chip .wc-delete {
+  display: none;
+  position: absolute; top: -7px; right: -7px;
+  width: 18px; height: 18px;
+  background: var(--rust); color: #fff;
+  border: none; border-radius: 50%;
+  font-size: 0.65rem; line-height: 18px; text-align: center;
+  cursor: pointer; font-weight: 900;
+  box-shadow: 0 2px 6px rgba(192,57,43,0.4);
+  padding: 0;
+  transition: transform 0.15s;
+}
+.word-chip:hover .wc-delete { display: block; }
+.word-chip .wc-delete:hover { transform: scale(1.2); }
+.word-chip .wc-hanzi {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 0.95rem; font-weight: 700; color: var(--ink);
+}
+.word-chip .wc-target {
+  color: var(--rust);
+}
+.word-chip .wc-pinyin {
+  display: none;
+}
+.word-chip .wc-meaning {
+  font-size: 0.62rem; color: var(--bamboo); font-weight: 500;
+  text-align: center; max-width: 72px; line-height: 1.2;
+}
+
+.no-result {
+  text-align: center; padding: 48px 24px;
+  color: #bbb; font-size: 0.95rem;
+}
+.no-result .no-icon { font-size: 3rem; display: block; margin-bottom: 10px; }
+
+/* ── PINYIN PANEL ── */
+.textarea-wrap {
+  background: var(--card);
+  border: 2px solid var(--mist);
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: 0 4px 20px var(--shadow);
+  margin-bottom: 16px;
+}
+.textarea-header {
+  padding: 10px 16px; background: var(--paper);
+  border-bottom: 1px solid var(--mist);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.textarea-header span { font-size: 0.75rem; font-weight: 700; color: var(--bamboo); letter-spacing: 1px; text-transform: uppercase; }
+
+.clear-btn {
+  background: none; border: 1px solid var(--mist);
+  border-radius: 6px; padding: 3px 10px;
+  font-size: 0.75rem; color: #aaa; cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: all 0.15s;
+}
+.clear-btn:hover { color: var(--rust); border-color: var(--rust); }
+
+.sentence-input {
+  width: 100%; padding: 16px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.4rem; font-weight: 400; line-height: 1.8;
+  border: none; outline: none; resize: none;
+  background: var(--card); color: var(--ink);
+  min-height: 100px;
+}
+
+.annotate-btn {
+  width: 100%; padding: 16px;
+  background: linear-gradient(135deg, #1a2f0e, var(--bamboo));
+  color: #fff; border: none; border-radius: var(--r);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 1.05rem; font-weight: 800;
+  cursor: pointer; transition: all 0.2s;
+  margin-bottom: 20px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 18px rgba(45,80,22,0.35);
+}
+.annotate-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(45,80,22,0.45); }
+.annotate-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+/* ── ANNOTATED RESULT ── */
+.annotated-wrap {
+  background: var(--card);
+  border: 2px solid var(--mist);
+  border-radius: var(--r);
+  padding: 24px 20px;
+  box-shadow: 0 6px 28px var(--shadow);
+  animation: fadeIn 0.4s ease;
+  line-height: 2;
+}
+
+.annotated-text {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.6rem; font-weight: 700;
+  line-height: 2.2;
+  word-break: break-all;
+}
+
+/* Known character — plain */
+.ann-known {
+  color: var(--ink);
+}
+
+/* Unknown character — char + (pinyin) inline */
+.ann-ruby {
+  display: inline;
+}
+.ann-ruby .ruby-char {
+  color: var(--rust);
+  font-weight: 700;
+}
+.ann-ruby .ruby-pin {
+  font-size: 0.85rem; color: var(--bamboo);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 700; letter-spacing: 0.5px;
+}
+
+/* Punctuation / spaces */
+.ann-punct {
+  color: var(--ink);
+}
+
+/* multi-pinyin indicator */
+.ann-ruby .ruby-pin.multi { color: var(--gold); }
+
+/* settings hint row */
+.settings-hint {
+  background: #f0f8e8;
+  border: 1px solid rgba(74,124,47,0.2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.8rem; color: var(--bamboo);
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* ── THRESHOLD INPUT ── */
+.threshold-row {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--card); border: 2px solid var(--mist);
+  border-radius: var(--r); padding: 14px 16px;
+  box-shadow: 0 4px 16px var(--shadow);
+  margin-bottom: 20px;
+}
+.threshold-row label {
+  font-size: 0.82rem; font-weight: 700; color: var(--bamboo);
+  white-space: nowrap;
+}
+.threshold-input {
+  flex: 1; padding: 8px 12px;
+  border: 2px solid var(--mist); border-radius: 10px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 1rem; font-weight: 700;
+  outline: none; background: var(--paper);
+  max-width: 100px;
+}
+.threshold-input:focus { border-color: var(--bamboo); }
+.threshold-save {
+  padding: 8px 16px;
+  background: var(--bamboo); color: #fff;
+  border: none; border-radius: 10px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.88rem; font-weight: 700;
+  cursor: pointer; transition: background 0.2s;
+}
+.threshold-save:hover { background: #3d6b20; }
+.threshold-display {
+  font-size: 0.82rem; color: #aaa;
+  white-space: nowrap;
+}
+.threshold-display strong { color: var(--bamboo); }
+
+/* ── RELOAD ── */
+.reload-btn {
+  width: 100%; padding: 14px;
+  background: var(--card);
+  border: 2px solid var(--mist);
+  border-radius: var(--r);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.95rem; font-weight: 700; color: var(--bamboo);
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.reload-btn:hover { background: #f0f8e8; border-color: var(--bamboo); }
+
+/* ── LOADING spinner ── */
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 3px solid rgba(74,124,47,0.2);
+  border-top-color: var(--bamboo);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EMPTY state ── */
+.empty-state {
+  text-align: center; padding: 52px 20px;
+  color: #c0b898;
+}
+.empty-state .e-icon { font-size: 3.5rem; margin-bottom: 12px; display: block; }
+.empty-state p { font-size: 0.95rem; line-height: 1.6; }
+
+/* ── COPY BUTTON ── */
+.result-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 14px;
+}
+.action-btn {
+  padding: 7px 16px;
+  border-radius: 8px; border: 1.5px solid var(--mist);
+  background: var(--paper); color: var(--bamboo);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.action-btn:hover { background: #f0f8e8; border-color: var(--bamboo); }
+
+/* ── LEARNED CHARACTERS ── */
+.learned-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.learned-header-info {
+  font-size: 0.78rem; font-weight: 700; color: var(--bamboo);
+}
+.learned-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 8px;
+}
+.learned-tile {
+  background: var(--card);
+  border: 1.5px solid var(--mist);
+  border-radius: 10px;
+  padding: 10px 4px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; transition: all 0.18s;
+  text-align: center;
+}
+.learned-tile:hover {
+  border-color: var(--bamboo2); background: #f0f8e8;
+  transform: translateY(-2px); box-shadow: 0 3px 10px rgba(74,124,47,0.15);
+}
+.learned-tile .lt-char {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.5rem; font-weight: 700; color: var(--ink); line-height: 1;
+}
+.learned-tile .lt-pinyin {
+  font-size: 0.62rem; color: var(--bamboo); font-weight: 600; letter-spacing: 0.3px;
+}
+.learned-tile .lt-no {
+  font-size: 0.58rem; color: #bbb; font-weight: 400;
+}
+
+/* ── CHAR MEANING (Claude API) ── */
+.char-meaning-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--mist);
+  animation: fadeIn 0.4s ease;
+}
+.char-meaning-text {
+  font-size: 0.88rem; color: #4a4a4a; line-height: 1.7;
+  font-family: 'Noto Sans SC', sans-serif;
+  white-space: pre-line;
+}
+.char-meaning-text .meaning-num {
+  color: var(--bamboo); font-weight: 700; margin-right: 2px;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="header-logo">汉字</div>
+    <div class="header-titles">
+      <div class="header-title">汉字助手</div>
+      <div class="header-sub">Teacher Tools · 教学辅助</div>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">未加载</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('search')" id="tab-search">
+    🔍 字典查询
+  </button>
+  <button class="tab" onclick="switchTab('annotate')" id="tab-annotate">
+    📝 注音批注
+  </button>
+  <button class="tab" onclick="switchTab('learned')" id="tab-learned">
+    📚 已学字表
+  </button>
+</div>
+
+<main>
+
+  <!-- ══ PANEL 1: Character Search ══ -->
+  <div class="panel active" id="panel-search">
+
+    <div class="threshold-row">
+      <label>已学字数</label>
+      <input type="number" class="threshold-input" id="threshold-input"
+             min="1" max="3500" placeholder="例：500">
+      <button class="threshold-save" onclick="saveThreshold()">保存</button>
+      <span class="threshold-display" id="threshold-display">—</span>
+    </div>
+
+    <div class="search-wrap">
+      <span class="search-label">🔍 输入一个汉字</span>
+      <div class="search-row">
+        <input class="search-input" id="char-input" type="text"
+               maxlength="1" placeholder="输入单个汉字…"
+               oninput="onCharInput()" onkeydown="if(event.key==='Enter')searchChar()">
+        <button class="search-btn" onclick="searchChar()">查询</button>
+      </div>
+    </div>
+
+    <div id="char-result">
+      <div class="empty-state">
+        <span class="e-icon">📖</span>
+        <p>输入一个汉字，查看它在3500常用字中的序号、拼音，以及所有包含该字的组词。</p>
+      </div>
+    </div>
+
+    <button class="reload-btn" onclick="reloadData()" style="margin-top:20px;" id="reload-btn">
+      🔄 重新加载数据
+    </button>
+
+  </div>
+
+  <!-- ══ PANEL 2: Sentence Annotator ══ -->
+  <div class="panel" id="panel-annotate">
+
+    <div class="settings-hint">
+      ℹ️ 只有序号大于阈值（未学）的字才会标注拼音。阈值：<strong id="threshold-hint">未设置</strong>
+    </div>
+
+    <div class="textarea-wrap">
+      <div class="textarea-header">
+        <span>📝 输入句子</span>
+        <button class="clear-btn" onclick="clearSentence()">清空</button>
+      </div>
+      <textarea class="sentence-input" id="sentence-input"
+                rows="4" placeholder="在此输入需要标注的中文句子…"></textarea>
+    </div>
+
+    <button class="annotate-btn" onclick="annotateSentence()" id="annotate-btn">
+      ✨ 自动标注拼音
+    </button>
+
+    <div id="annotate-result">
+      <div class="empty-state">
+        <span class="e-icon">✍️</span>
+        <p>输入句子后点击「自动标注拼音」，<br>未学的字会自动显示拼音注音。</p>
+      </div>
+    </div>
+
+  </div>
+  <!-- ══ PANEL 3: Learned Characters ══ -->
+  <div class="panel" id="panel-learned">
+    <div id="learned-result">
+      <div class="empty-state">
+        <span class="e-icon">📚</span>
+        <p>请先设置已学字数阈值，并加载数据。</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxgh46y5Aczzjow6kG6ogHYFdmNhDo8D_dNXlvze8WggTsdw9VS-_BRgJhLO-6Cot8/exec';
+
+let allCharData = [];   // { character, pinyin, serialNo, words }
+let allWordData = [];   // { word, meaning, pinyin }
+let threshold   = 9999;
+
+// Pre-built maps for fast lookup
+let charMap = {};       // char → { pinyin, serialNo, words }
+let wordSet = new Set();// all words as strings
+let wordPinyinMap = {}; // word-string → pinyin
+
+// ── INIT ────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadThreshold();
+  loadCachedData();
+});
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'learned') renderLearnedChars();
+}
+
+// ── LEARNED CHARACTERS ───────────────────────────────────────────────────────
+function renderLearnedChars() {
+  const container = document.getElementById('learned-result');
+
+  if (allCharData.length === 0) {
+    container.innerHTML = `<div class="empty-state"><span class="e-icon">⚠️</span><p>数据未加载，请先点击「重新加载数据」</p></div>`;
+    return;
+  }
+  if (threshold === 9999) {
+    container.innerHTML = `<div class="empty-state"><span class="e-icon">📚</span><p>请先在「字典查询」页设置已学字数阈值。</p></div>`;
+    return;
+  }
+
+  // Filter chars within threshold, sort descending (most recent first)
+  const learned = allCharData
+    .filter(c => c.serialNo <= threshold)
+    .sort((a, b) => b.serialNo - a.serialNo);
+
+  const tilesHtml = learned.map(c => {
+    const pinyin = c.pinyin.split('/')[0].trim();
+    return `
+      <div class="learned-tile" onclick="jumpToSearch('${c.character}')">
+        <div class="lt-char">${c.character}</div>
+        <div class="lt-pinyin">${pinyin}</div>
+        <div class="lt-no">#${c.serialNo}</div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="learned-header">
+      <span class="learned-header-info">📚 已学 ${learned.length} 个字（序号 1–${threshold}），最近学的在前</span>
+    </div>
+    <div class="learned-grid">${tilesHtml}</div>`;
+}
+
+function jumpToSearch(ch) {
+  switchTab('search');
+  document.getElementById('char-input').value = ch;
+  searchChar();
+}
+
+// ── THRESHOLD ───────────────────────────────────────────────────────────────
+function loadThreshold() {
+  const saved = localStorage.getItem('teacherAppThreshold');
+  if (saved) {
+    threshold = parseInt(saved) || 9999;
+    document.getElementById('threshold-input').value = threshold === 9999 ? '' : threshold;
+    updateThresholdDisplay();
+  }
+}
+function saveThreshold() {
+  const val = parseInt(document.getElementById('threshold-input').value);
+  if (!val || val < 1) { alert('请输入有效的字数（1–3500）'); return; }
+  threshold = val;
+  localStorage.setItem('teacherAppThreshold', threshold);
+  updateThresholdDisplay();
+}
+function updateThresholdDisplay() {
+  const d = threshold === 9999 ? '全部' : `前 ${threshold} 字`;
+  document.getElementById('threshold-display').innerHTML = `当前：<strong>${d}</strong>`;
+  document.getElementById('threshold-hint').textContent = threshold === 9999 ? '未设置（全部已知）' : threshold;
+}
+
+// ── DATA LOADING ─────────────────────────────────────────────────────────────
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  dot.className = 'status-dot ' + (state === 'ok' ? 'ok' : state === 'err' ? 'err' : '');
+  txt.textContent = text;
+}
+
+function buildMaps() {
+  charMap = {};
+  wordSet = new Set();
+  wordPinyinMap = {};
+
+  allCharData.forEach(c => {
+    charMap[c.character] = c;
+  });
+  allWordData.forEach(w => {
+    if (w.word) {
+      wordSet.add(w.word);
+      wordPinyinMap[w.word] = w.pinyin;
+    }
+  });
+}
+
+function loadCachedData() {
+  try {
+    const raw = localStorage.getItem('chineseAppData');
+    if (!raw) { setStatus('', '未加载'); return; }
+    const cached = JSON.parse(raw);
+    allCharData = cached.allCharData || cached.charData || [];
+    allWordData = cached.allWordData || cached.wordData || [];
+    if (allCharData.length > 0) {
+      buildMaps();
+      const date = cached.savedAt ? new Date(cached.savedAt).toLocaleDateString('zh-CN') : '之前';
+      setStatus('ok', `${allCharData.length} 字 · ${allWordData.length} 词`);
+    }
+  } catch(e) {
+    setStatus('err', '缓存错误');
+  }
+}
+
+async function reloadData() {
+  const btn = document.getElementById('reload-btn');
+  btn.innerHTML = '<span class="spinner"></span> 加载中…';
+  btn.disabled = true;
+  setStatus('', '加载中…');
+
+  try {
+    const res  = await fetch(APPS_SCRIPT_URL, { redirect: 'follow' });
+    const data = await res.json();
+
+    const [charHeader, ...charRows] = data.chars;
+    const ci = charHeader.map(h => String(h).toLowerCase().trim());
+    allCharData = charRows.map(r => ({
+      character: String(r[ci.indexOf('character')] || '').trim(),
+      pinyin:    String(r[ci.indexOf('pinyin')]    || '').trim(),
+      serialNo:  parseInt(r[ci.indexOf('no')]      || r[2] || 9999),
+      words:     String(r[ci.indexOf('words')]     || r[3] || '').split(/[,，]/).map(w => w.trim()).filter(Boolean),
+      meaning:   ci.indexOf('meaning') !== -1 ? String(r[ci.indexOf('meaning')] || '').trim() : '',
+    })).filter(r => r.character && r.pinyin);
+
+    const [wordHeader, ...wordRows] = data.words;
+    const wi = wordHeader.map(h => String(h).toLowerCase().trim());
+    const wCol = wi.indexOf('word') !== -1 ? wi.indexOf('word') : wi.indexOf('words');
+    const mCol = wi.indexOf('meaning');
+    const pCol = wi.indexOf('pinyin');
+    allWordData = wordRows.map(r => ({
+      word:    String(r[wCol]    || '').trim(),
+      meaning: String(r[mCol]   || '').trim(),
+      pinyin:  String(r[pCol] !== undefined ? r[pCol] : (r[2] || '')).trim(),
+    })).filter(r => r.word && r.meaning);
+
+    localStorage.setItem('chineseAppData', JSON.stringify({ allCharData, allWordData, savedAt: Date.now() }));
+    buildMaps();
+    setStatus('ok', `${allCharData.length} 字 · ${allWordData.length} 词`);
+    btn.innerHTML = '✅ 加载完成';
+    setTimeout(() => { btn.innerHTML = '🔄 重新加载数据'; btn.disabled = false; }, 2000);
+  } catch(err) {
+    console.error(err);
+    setStatus('err', '加载失败');
+    btn.innerHTML = '❌ 失败，点击重试';
+    btn.disabled = false;
+  }
+}
+
+// ── SEARCH ───────────────────────────────────────────────────────────────────
+function onCharInput() {
+  const v = document.getElementById('char-input').value;
+  if (v.length > 1) document.getElementById('char-input').value = v[v.length - 1];
+}
+
+function searchChar() {
+  const ch = document.getElementById('char-input').value.trim();
+  const container = document.getElementById('char-result');
+
+  if (!ch) {
+    container.innerHTML = `<div class="no-result"><span class="no-icon">🤔</span>请先输入一个汉字</div>`;
+    return;
+  }
+  if (allCharData.length === 0) {
+    container.innerHTML = `<div class="no-result"><span class="no-icon">⚠️</span>数据未加载，请先点击「重新加载数据」</div>`;
+    return;
+  }
+
+  const found = charMap[ch];
+  if (!found) {
+    container.innerHTML = `<div class="no-result"><span class="no-icon">🔍</span>「${ch}」不在3500常用字表中</div>`;
+    return;
+  }
+
+  // Find all words containing this character (from wordData)
+  const matchedWords = allWordData.filter(w => w.word.includes(ch));
+
+  // Highlight multiple pinyins
+  const pinyins = found.pinyin.split('/').map(p => p.trim()).filter(Boolean);
+  const pinyinHtml = pinyins.map((p, i) =>
+    `<span style="color:${i === 0 ? 'var(--gold)' : 'rgba(201,168,76,0.6)'}">${p}</span>`
+  ).join(' / ');
+
+  const wordsHtml = matchedWords.length === 0
+    ? `<p style="color:#bbb;font-size:0.88rem;">暂无组词数据</p>`
+    : matchedWords.map(w => {
+        // highlight the target char in the word
+        const highlighted = w.word.split('').map(c =>
+          c === ch ? `<span class="wc-target">${c}</span>` : c
+        ).join('');
+        return `
+          <div class="word-chip" id="chip-${w.word}">
+            <button class="wc-delete" onclick="deleteWord('${w.word}', event)" title="删除「${w.word}」">×</button>
+            <div class="wc-hanzi">${highlighted}</div>
+            ${w.pinyin ? `<div class="wc-pinyin">${w.pinyin}</div>` : ''}
+            ${w.meaning ? `<div class="wc-meaning">${w.meaning}</div>` : ''}
+          </div>`;
+      }).join('');
+
+  container.innerHTML = `
+    <div class="char-card">
+      <div class="char-card-top">
+        <div class="char-big">${ch}</div>
+        <div class="char-meta">
+          <div class="char-pinyin">${pinyinHtml}</div>
+          <div class="char-serial">3500常用字 第 <span>#${found.serialNo}</span> 号</div>
+          ${found.serialNo <= threshold
+            ? `<div style="margin-top:6px;font-size:0.75rem;color:rgba(107,203,119,0.9);">✅ 已在学习范围内（≤ ${threshold}）</div>`
+            : `<div style="margin-top:6px;font-size:0.75rem;color:rgba(255,107,107,0.9);">📖 超出当前阈值（> ${threshold}）</div>`
+          }
+        </div>
+      </div>
+      <div id="char-meaning-container"></div>
+      <div class="char-words-section">
+        <div class="section-title">Words · 组词（共 ${matchedWords.length} 个）</div>
+        <div class="words-grid">${wordsHtml}</div>
+      </div>
+    </div>`;
+
+  // Async: fetch meaning from Claude API (silent fallback if unavailable)
+  fetchCharMeaning(ch);
+}
+
+// ── CHAR MEANING (from Google Sheet only) ────────────────────────────────────
+function fetchCharMeaning(ch) {
+  const container = document.getElementById('char-meaning-container');
+  if (!container) return;
+  const charEntry = charMap[ch];
+  if (!charEntry || !charEntry.meaning) return; // no meaning in sheet → stay silent
+  const formatted = charEntry.meaning
+    .replace(/◎/g, '\n◎')
+    .trimStart()
+    .replace(/(①|②|③)/g, '<span class="meaning-num">$1</span>');
+  container.innerHTML = `
+    <div class="char-meaning-section">
+      <div class="char-meaning-text">${formatted}</div>
+    </div>`;
+}
+
+
+async function deleteWord(word, event) {
+  event.stopPropagation();
+  if (!confirm(`确定要删除「${word}」吗？此操作会直接修改 Google Sheets。`)) return;
+
+  const chip = document.getElementById('chip-' + word);
+  if (chip) { chip.style.opacity = '0.4'; chip.style.pointerEvents = 'none'; }
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteWord', word }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      // Remove from local arrays
+      allWordData = allWordData.filter(w => w.word !== word);
+      wordSet.delete(word);
+      delete wordPinyinMap[word];
+
+      // Clear cache and force fresh reload
+      localStorage.removeItem('chineseAppData');
+
+      // Remove chip from UI with animation
+      if (chip) {
+        chip.style.transition = 'all 0.3s';
+        chip.style.transform = 'scale(0)';
+        chip.style.opacity = '0';
+        setTimeout(() => chip.remove(), 300);
+      }
+
+      // Trigger background reload to refresh cache
+      reloadData();
+    } else {
+      alert('删除失败：' + data.message);
+      if (chip) { chip.style.opacity = '1'; chip.style.pointerEvents = ''; }
+    }
+  } catch (err) {
+    alert('网络错误，请重试');
+    if (chip) { chip.style.opacity = '1'; chip.style.pointerEvents = ''; }
+  }
+}
+
+// ── ANNOTATE ─────────────────────────────────────────────────────────────────
+
+/**
+ * Get pinyin for a single character at position i in the string.
+ * Logic:
+ *   1. Check if chars[i]+chars[i+1] is a known word → use word's pinyin (first char's portion)
+ *   2. Check if chars[i-1]+chars[i] is a known word → use word's pinyin (second char's portion)
+ *   3. Priority: forward pair beats backward pair
+ *   4. Fallback: character-level pinyin
+ *
+ * Returns: { pinyin: string, fromWord: string|null }
+ */
+function getPinyinForChar(chars, i) {
+  const fwdWord = i + 1 < chars.length ? chars[i] + chars[i + 1] : null;
+  const bwdWord = i - 1 >= 0          ? chars[i - 1] + chars[i] : null;
+
+  const fwdValid = fwdWord && wordSet.has(fwdWord);
+  const bwdValid = bwdWord && wordSet.has(bwdWord);
+
+  // forward priority
+  if (fwdValid) {
+    const wp = wordPinyinMap[fwdWord] || '';
+    const parts = splitWordPinyin(wp, 2);
+    return { pinyin: parts[0] || getCharPinyin(chars[i]), fromWord: fwdWord, slot: 0 };
+  }
+  if (bwdValid) {
+    const wp = wordPinyinMap[bwdWord] || '';
+    const parts = splitWordPinyin(wp, 2);
+    return { pinyin: parts[1] || getCharPinyin(chars[i]), fromWord: bwdWord, slot: 1 };
+  }
+  return { pinyin: getCharPinyin(chars[i]), fromWord: null, slot: -1 };
+}
+
+/**
+ * Split a 2-character word's pinyin string into [py1, py2].
+ * Word pinyin format examples: "xué xiào", "shàng xué"
+ */
+function splitWordPinyin(wp, n) {
+  if (!wp) return [];
+  // Split on spaces; each syllable is one char's pinyin
+  const parts = wp.trim().split(/\s+/);
+  return parts;
+}
+
+function getCharPinyin(ch) {
+  const entry = charMap[ch];
+  return entry ? entry.pinyin : '';
+}
+
+function isUnknown(ch) {
+  const entry = charMap[ch];
+  if (!entry) return false; // not in our table → treat as known (or skip)
+  return entry.serialNo > threshold;
+}
+
+function isChinese(ch) {
+  return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch);
+}
+
+function clearSentence() {
+  document.getElementById('sentence-input').value = '';
+  document.getElementById('annotate-result').innerHTML = `
+    <div class="empty-state">
+      <span class="e-icon">✍️</span>
+      <p>输入句子后点击「自动标注拼音」，<br>未学的字会自动显示拼音注音。</p>
+    </div>`;
+}
+
+function annotateSentence() {
+  const text = document.getElementById('sentence-input').value.trim();
+  const container = document.getElementById('annotate-result');
+
+  if (!text) {
+    container.innerHTML = `<div class="no-result"><span class="no-icon">🤔</span>请先输入句子</div>`;
+    return;
+  }
+  if (allCharData.length === 0) {
+    container.innerHTML = `<div class="no-result"><span class="no-icon">⚠️</span>数据未加载，请先加载数据</div>`;
+    return;
+  }
+
+  const chars = Array.from(text);
+  let html = '';
+  let unknownCount = 0;
+
+  // We need to determine pinyin for each Chinese char
+  // For pairs: we annotate using word-level pinyin when possible.
+  // Track which positions are covered by a forward pair to avoid
+  // looking up the same word twice.
+  const pinyinCache = {}; // index → { pinyin, fromWord }
+
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+
+    if (!isChinese(ch)) {
+      // Punctuation or spaces
+      html += `<span class="ann-punct">${ch}</span>`;
+      continue;
+    }
+
+    const unknown = isUnknown(ch);
+
+    if (!unknown) {
+      html += `<span class="ann-known">${ch}</span>`;
+      continue;
+    }
+
+    // Unknown → need pinyin
+    unknownCount++;
+
+    // Determine pinyin using word-priority logic
+    let pinyin = '';
+    let isMulti = false;
+
+    // Check forward pair: chars[i] + chars[i+1]
+    const fwdWord = i + 1 < chars.length && isChinese(chars[i+1])
+      ? chars[i] + chars[i + 1] : null;
+    // Check backward pair: chars[i-1] + chars[i]
+    const bwdWord = i - 1 >= 0 && isChinese(chars[i-1])
+      ? chars[i - 1] + chars[i] : null;
+
+    const fwdValid = fwdWord && wordSet.has(fwdWord);
+    const bwdValid = bwdWord && wordSet.has(bwdWord);
+
+    if (fwdValid) {
+      // Use first syllable of the word's pinyin
+      const wp = wordPinyinMap[fwdWord] || '';
+      const parts = wp.trim().split(/\s+/);
+      pinyin = parts[0] || getCharPinyin(ch);
+    } else if (bwdValid) {
+      // Use second syllable of the word's pinyin
+      const wp = wordPinyinMap[bwdWord] || '';
+      const parts = wp.trim().split(/\s+/);
+      pinyin = parts[1] || getCharPinyin(ch);
+    } else {
+      pinyin = getCharPinyin(ch);
+      // Check if it's a multi-pronunciation character
+      if (pinyin && pinyin.includes('/')) isMulti = true;
+    }
+
+    // If still no pinyin, just show the char without annotation
+    if (!pinyin) {
+      html += `<span class="ann-known" style="color:var(--rust)">${ch}</span>`;
+      continue;
+    }
+
+    // For display: take first pronunciation when multiple (from chars table)
+    const displayPin = pinyin.split('/')[0].trim();
+
+    html += `<span class="ann-ruby"><span class="ruby-char">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">(${displayPin})</span></span>`;
+  }
+
+  const summaryColor = unknownCount === 0 ? 'var(--bamboo)' : 'var(--rust)';
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <span style="font-size:0.78rem;font-weight:700;color:${summaryColor};">
+        ${unknownCount === 0 ? '✅ 全部在学习范围内' : `📖 共 ${unknownCount} 个未学字已标注拼音`}
+      </span>
+      <span style="font-size:0.75rem;color:#bbb;">阈值：${threshold === 9999 ? '未设置' : threshold}</span>
+    </div>
+    <div class="annotated-wrap">
+      <div class="annotated-text">${html}</div>
+    </div>
+    <div class="result-actions">
+      <button class="action-btn" onclick="copyOriginalText()">📋 复制原文</button>
+      <button class="action-btn" onclick="copyAnnotatedText()">📋 复制带注音文本</button>
+    </div>`;
+}
+
+function copyOriginalText() {
+  const text = document.getElementById('sentence-input').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ 已复制';
+    setTimeout(() => btn.textContent = '📋 复制原文', 1500);
+  });
+}
+
+function copyAnnotatedText() {
+  // Build a single continuous plain-text string:
+  // known chars and punctuation as-is; unknown chars as 字(pīn) — no line breaks
+  const wrap = document.querySelector('.annotated-text');
+  if (!wrap) return;
+  let plain = '';
+  wrap.childNodes.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      plain += node.textContent;
+    } else if (node.classList && node.classList.contains('ann-ruby')) {
+      const charEl = node.querySelector('.ruby-char');
+      const pinEl  = node.querySelector('.ruby-pin');
+      plain += (charEl ? charEl.textContent : '') + (pinEl ? pinEl.textContent : '');
+    } else {
+      plain += node.textContent;
+    }
+  });
+  navigator.clipboard.writeText(plain).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ 已复制';
+    setTimeout(() => btn.textContent = '📋 复制带注音文本', 1500);
+  });
+}
+
+// ── PWA ──────────────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('teacher-sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
