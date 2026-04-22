@@ -325,7 +325,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 
 .annotated-text {
   font-family: 'Noto Serif SC', serif;
-  font-size: 1.6rem; font-weight: 700;
+  font-size: 1.2rem; font-weight: 700;
   line-height: 2.2;
   word-break: break-all;
 }
@@ -527,7 +527,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 .lt-test-btn {
   flex: 1; padding: 4px 0;
   border: none; border-radius: 6px;
-  font-size: 1.6rem; font-weight: 900;
+  font-size: 1.2rem; font-weight: 900;
   cursor: pointer; background: transparent;
   transition: opacity 0.15s; line-height: 1.2;
 }
@@ -750,7 +750,7 @@ function renderLearnedChars() {
         <div class="lt-no">#${c.serialNo}</div>
         <div class="lt-test-btns" onclick="event.stopPropagation()">
           <button class="lt-test-btn correct-btn"   onclick="recordTest('${c.character}',1)">●</button>
-          <button class="lt-test-btn incorrect-btn" onclick="recordTest('${c.character}',0)">✕</button>
+          <button class="lt-test-btn incorrect-btn" onclick="recordTest('${c.character}',0)">X</button>
         </div>
       </div>`;
   }).join('');
@@ -1025,7 +1025,7 @@ function getTilePerf(ch) {
 function renderTestHistoryHtml(ch) {
   const records = testData[ch] || [];
   const dotsHtml = records.length === 0
-    ? `<span class="test-history-empty">暂无测试记录</span>`
+    ? `<span class="test-history-empty">无测试记录</span>`
     : records.slice(-20).map(r =>
         `<span class="test-dot ${r.result === 1 ? 'correct' : 'incorrect'}">${r.result === 1 ? '✓' : '✗'}</span>`
       ).join('') + (records.length > 20 ? `<span style="font-size:0.72rem;color:#bbb;">…共${records.length}次</span>` : '');
