@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>汉字助手</title>
-<!-- manifest only works when served over http, not file:// -->
 <link rel="manifest" href="teacher-manifest.json">
 <meta name="theme-color" content="#2D5016">
 <meta name="mobile-web-app-capable" content="yes">
@@ -26,6 +25,7 @@
   --shadow:  rgba(26,26,46,0.12);
   --card:    #fffdf8;
   --r:       16px;
+  --header-h: 73px; /* Estimated height for sticky offset */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,7 +53,7 @@ header {
   padding: 16px 20px;
   display: flex; align-items: center; justify-content: space-between;
   box-shadow: 0 4px 24px rgba(0,0,0,0.25);
-  position: relative; z-index: 10;
+  position: sticky; top: 0; z-index: 100; /* Fixed to top */
 }
 header::after {
   content: '';
@@ -94,7 +94,7 @@ header::after {
 .tabs {
   display: flex;
   background: #fff; border-bottom: 2px solid var(--mist);
-  position: relative; z-index: 5;
+  position: sticky; top: var(--header-h); z-index: 90; /* Sticky below header */
 }
 .tab {
   flex: 1; padding: 13px 8px; border: none; background: none;
@@ -186,6 +186,9 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   color: #fff; line-height: 1;
   text-shadow: 2px 3px 8px rgba(0,0,0,0.4);
   flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: help;
 }
 .char-meta { flex: 1; }
 .char-pinyin {
@@ -519,14 +522,14 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 
 /* ── TEST BUTTONS on learned tile ── */
 .lt-test-btns {
-  display: flex; gap: 4px; margin-top: 4px;
+  display: flex; gap: 12px; margin-top: 4px; /* Increased gap to prevent misclicks */
 }
 .lt-test-btn {
-  flex: 1; padding: 2px 0;
+  flex: 1; padding: 4px 0;
   border: 1.5px solid var(--mist); border-radius: 6px;
-  font-size: 0.75rem; font-weight: 900;
+  font-size: 1.2rem; font-weight: 900; /* Larger symbols */
   cursor: pointer; background: var(--paper);
-  transition: all 0.15s; line-height: 1.4;
+  transition: all 0.15s; line-height: 1.2;
 }
 .lt-test-btn.correct-btn   { color: #2d6a3f; }
 .lt-test-btn.incorrect-btn { color: #a93226; }
@@ -557,7 +560,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 </head>
 <body>
 
-<header>
+<header id="main-header">
   <div class="header-left">
     <div class="header-logo">汉字</div>
     <div class="header-titles">
@@ -571,7 +574,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   </div>
 </header>
 
-<div class="tabs">
+<div class="tabs" id="main-tabs">
   <button class="tab active" onclick="switchTab('search')" id="tab-search">
     🔍 字典查询
   </button>
@@ -585,7 +588,6 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 
 <main>
 
-  <!-- ══ PANEL 1: Character Search ══ -->
   <div class="panel active" id="panel-search">
 
     <div class="threshold-row">
@@ -597,7 +599,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     </div>
 
     <div class="search-wrap">
-      <span class="search-label">🔍 输入一个汉字</span>
+      <span class="search-label">🔍 输入一个汉字（长按汉字跳转至字表）</span>
       <div class="search-row">
         <input class="search-input" id="char-input" type="text"
                maxlength="1" placeholder="输入单个汉字…"
@@ -619,7 +621,6 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 
   </div>
 
-  <!-- ══ PANEL 2: Sentence Annotator ══ -->
   <div class="panel" id="panel-annotate">
 
     <div class="settings-hint">
@@ -647,7 +648,6 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     </div>
 
   </div>
-  <!-- ══ PANEL 3: Learned Characters ══ -->
   <div class="panel" id="panel-learned">
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;align-items:center;">
       <span id="sync-status" style="font-size:0.75rem;color:#bbb;"></span>
@@ -687,12 +687,40 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── TABS ─────────────────────────────────────────────────────────────────────
-function switchTab(tab) {
+function switchTab(tab, targetChar = null) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
-  if (tab === 'learned') renderLearnedChars();
+  
+  if (tab === 'learned') {
+    renderLearnedChars();
+    if (targetChar) {
+      setTimeout(() => scrollToCharInLearned(targetChar), 100);
+    }
+  }
+}
+
+function scrollToCharInLearned(ch) {
+  const tiles = document.querySelectorAll('.learned-tile');
+  for (const tile of tiles) {
+    if (tile.querySelector('.lt-char').textContent === ch) {
+      const headerOffset = document.getElementById('main-header').offsetHeight + document.getElementById('main-tabs').offsetHeight + 20;
+      const elementPosition = tile.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
+      
+      // Visual feedback
+      tile.style.transition = 'transform 0.3s';
+      tile.style.transform = 'scale(1.1)';
+      setTimeout(() => tile.style.transform = '', 500);
+      break;
+    }
+  }
 }
 
 // ── LEARNED CHARACTERS ───────────────────────────────────────────────────────
@@ -837,7 +865,10 @@ async function reloadData() {
 
     localStorage.setItem('chineseAppData', JSON.stringify({ allCharData, allWordData, savedAt: Date.now() }));
     buildMaps();
-    restoreTestsFromSheets(data.tests || []);
+    
+    // Updated: Always overwrite local test data with sheet data during reload
+    restoreTestsFromSheets(data.tests || [], true);
+    
     setStatus('ok', `${allCharData.length} 字 · ${allWordData.length} 词`);
     btn.innerHTML = '✅ 加载完成';
     setTimeout(() => { btn.innerHTML = '🔄 重新加载数据'; btn.disabled = false; }, 2000);
@@ -874,10 +905,7 @@ function searchChar() {
     return;
   }
 
-  // Find all words containing this character (from wordData)
   const matchedWords = allWordData.filter(w => w.word.includes(ch));
-
-  // Highlight multiple pinyins
   const pinyins = found.pinyin.split('/').map(p => p.trim()).filter(Boolean);
   const pinyinHtml = pinyins.map((p, i) =>
     `<span style="color:${i === 0 ? 'var(--gold)' : 'rgba(201,168,76,0.6)'}">${p}</span>`
@@ -886,7 +914,6 @@ function searchChar() {
   const wordsHtml = matchedWords.length === 0
     ? `<p style="color:#bbb;font-size:0.88rem;">暂无组词数据</p>`
     : matchedWords.map(w => {
-        // highlight the target char in the word
         const highlighted = w.word.split('').map(c =>
           c === ch ? `<span class="wc-target">${c}</span>` : c
         ).join('');
@@ -902,7 +929,7 @@ function searchChar() {
   container.innerHTML = `
     <div class="char-card">
       <div class="char-card-top">
-        <div class="char-big">${ch}</div>
+        <div class="char-big" id="search-char-big" title="长按跳转到已学字表">${ch}</div>
         <div class="char-meta">
           <div class="char-pinyin">${pinyinHtml}</div>
           <div class="char-serial">3500常用字 第 <span>#${found.serialNo}</span> 号</div>
@@ -920,8 +947,27 @@ function searchChar() {
       </div>
     </div>`;
 
-  // Async: fetch meaning from Claude API (silent fallback if unavailable)
   fetchCharMeaning(ch);
+  
+  // Add long press detection
+  const charBig = document.getElementById('search-char-big');
+  let pressTimer;
+  const startPress = (e) => {
+    pressTimer = setTimeout(() => {
+      if (found.serialNo <= threshold) {
+        switchTab('learned', ch);
+      } else {
+        alert(`「${ch}」序号为 #${found.serialNo}，大于当前阈值 ${threshold}，不在已学字表中。`);
+      }
+    }, 500);
+  };
+  const clearPress = () => clearTimeout(pressTimer);
+  
+  charBig.addEventListener('mousedown', startPress);
+  charBig.addEventListener('touchstart', startPress);
+  charBig.addEventListener('mouseup', clearPress);
+  charBig.addEventListener('mouseleave', clearPress);
+  charBig.addEventListener('touchend', clearPress);
 }
 
 // ── TEST DATA ─────────────────────────────────────────────────────────────────
@@ -939,22 +985,16 @@ function saveTestData() {
   localStorage.setItem('chineseTestData', JSON.stringify(testData));
 }
 
-/**
- * Record a test result for a character.
- * result: 1 = correct, 0 = incorrect
- */
 function recordTest(ch, result) {
   if (!testData[ch]) testData[ch] = [];
   testData[ch].push({ timestamp: Date.now(), result });
   saveTestData();
 
-  // Update tile colour in-place without full re-render
   const tiles = document.querySelectorAll(`.learned-tile`);
   tiles.forEach(tile => {
     const charEl = tile.querySelector('.lt-char');
     if (charEl && charEl.textContent === ch) {
       tile.dataset.perf = getTilePerf(ch);
-      // Brief flash feedback
       const btn = result === 1
         ? tile.querySelector('.correct-btn')
         : tile.querySelector('.incorrect-btn');
@@ -965,16 +1005,12 @@ function recordTest(ch, result) {
     }
   });
 
-  // If search result is showing this char, refresh test history
   const histSection = document.getElementById('test-history-' + ch);
   if (histSection) {
     histSection.outerHTML = renderTestHistoryHtml(ch);
   }
 }
 
-/**
- * Returns data-perf value for a character tile based on last 5 tests.
- */
 function getTilePerf(ch) {
   const records = testData[ch];
   if (!records || records.length === 0) return 'none';
@@ -987,9 +1023,6 @@ function getTilePerf(ch) {
   return 'mixed';
 }
 
-/**
- * Build HTML for test history section in search result card.
- */
 function renderTestHistoryHtml(ch) {
   const records = testData[ch] || [];
   const dotsHtml = records.length === 0
@@ -1006,15 +1039,18 @@ function renderTestHistoryHtml(ch) {
 }
 
 /**
- * Restore testData from Sheets if localStorage is empty.
- * Called after reloadData() fetches fresh data.
+ * Restore testData from Sheets.
+ * forced: if true, overwrites local data regardless of existing content.
  */
-function restoreTestsFromSheets(testsRaw) {
-  if (!testsRaw || testsRaw.length <= 1) return; // empty or header only
+function restoreTestsFromSheets(testsRaw, forced = false) {
+  if (!testsRaw || testsRaw.length <= 1) return;
   const existing = localStorage.getItem('chineseTestData');
-  if (existing) return; // already have local data, don't overwrite
+  
+  // Changed: If forced (during reload), always overwrite
+  if (existing && !forced) return; 
+
   testData = {};
-  const [, ...rows] = testsRaw; // skip header row
+  const [, ...rows] = testsRaw;
   rows.forEach(r => {
     const ch = String(r[0] || '').trim();
     const ts = Number(r[1]) || 0;
@@ -1026,9 +1062,6 @@ function restoreTestsFromSheets(testsRaw) {
   saveTestData();
 }
 
-/**
- * Sync all local test records to Google Sheets (full overwrite).
- */
 async function syncTestsToSheets() {
   const btn = document.getElementById('sync-btn');
   const statusEl = document.getElementById('sync-status');
@@ -1036,7 +1069,6 @@ async function syncTestsToSheets() {
   btn.textContent = '⏳ 同步中…';
   statusEl.textContent = '';
 
-  // Flatten testData into records array
   const records = [];
   Object.entries(testData).forEach(([ch, arr]) => {
     arr.forEach(r => records.push({ char: ch, timestamp: r.timestamp, result: r.result }));
@@ -1062,12 +1094,12 @@ async function syncTestsToSheets() {
   btn.disabled = false;
 }
 
-// ── CHAR MEANING (from Google Sheet only) ────────────────────────────────────
+// ── CHAR MEANING ──
 function fetchCharMeaning(ch) {
   const container = document.getElementById('char-meaning-container');
   if (!container) return;
   const charEntry = charMap[ch];
-  if (!charEntry || !charEntry.meaning) return; // no meaning in sheet → stay silent
+  if (!charEntry || !charEntry.meaning) return;
   const formatted = charEntry.meaning
     .replace(/◎/g, '\n◎')
     .trimStart()
@@ -1094,23 +1126,16 @@ async function deleteWord(word, event) {
     const data = await res.json();
 
     if (data.success) {
-      // Remove from local arrays
       allWordData = allWordData.filter(w => w.word !== word);
       wordSet.delete(word);
       delete wordPinyinMap[word];
-
-      // Clear cache and force fresh reload
       localStorage.removeItem('chineseAppData');
-
-      // Remove chip from UI with animation
       if (chip) {
         chip.style.transition = 'all 0.3s';
         chip.style.transform = 'scale(0)';
         chip.style.opacity = '0';
         setTimeout(() => chip.remove(), 300);
       }
-
-      // Trigger background reload to refresh cache
       reloadData();
     } else {
       alert('删除失败：' + data.message);
@@ -1122,18 +1147,8 @@ async function deleteWord(word, event) {
   }
 }
 
-// ── ANNOTATE ─────────────────────────────────────────────────────────────────
+// ── ANNOTATE ──
 
-/**
- * Get pinyin for a single character at position i in the string.
- * Logic:
- *   1. Check if chars[i]+chars[i+1] is a known word → use word's pinyin (first char's portion)
- *   2. Check if chars[i-1]+chars[i] is a known word → use word's pinyin (second char's portion)
- *   3. Priority: forward pair beats backward pair
- *   4. Fallback: character-level pinyin
- *
- * Returns: { pinyin: string, fromWord: string|null }
- */
 function getPinyinForChar(chars, i) {
   const fwdWord = i + 1 < chars.length ? chars[i] + chars[i + 1] : null;
   const bwdWord = i - 1 >= 0          ? chars[i - 1] + chars[i] : null;
@@ -1141,27 +1156,21 @@ function getPinyinForChar(chars, i) {
   const fwdValid = fwdWord && wordSet.has(fwdWord);
   const bwdValid = bwdWord && wordSet.has(bwdWord);
 
-  // forward priority
   if (fwdValid) {
     const wp = wordPinyinMap[fwdWord] || '';
-    const parts = splitWordPinyin(wp, 2);
+    const parts = wp.trim().split(/\s+/);
     return { pinyin: parts[0] || getCharPinyin(chars[i]), fromWord: fwdWord, slot: 0 };
   }
   if (bwdValid) {
     const wp = wordPinyinMap[bwdWord] || '';
-    const parts = splitWordPinyin(wp, 2);
+    const parts = wp.trim().split(/\s+/);
     return { pinyin: parts[1] || getCharPinyin(chars[i]), fromWord: bwdWord, slot: 1 };
   }
   return { pinyin: getCharPinyin(chars[i]), fromWord: null, slot: -1 };
 }
 
-/**
- * Split a 2-character word's pinyin string into [py1, py2].
- * Word pinyin format examples: "xué xiào", "shàng xué"
- */
 function splitWordPinyin(wp, n) {
   if (!wp) return [];
-  // Split on spaces; each syllable is one char's pinyin
   const parts = wp.trim().split(/\s+/);
   return parts;
 }
@@ -1173,7 +1182,7 @@ function getCharPinyin(ch) {
 
 function isUnknown(ch) {
   const entry = charMap[ch];
-  if (!entry) return false; // not in our table → treat as known (or skip)
+  if (!entry) return false;
   return entry.serialNo > threshold;
 }
 
@@ -1206,40 +1215,24 @@ function annotateSentence() {
   const chars = Array.from(text);
   let html = '';
   let unknownCount = 0;
-
-  // We need to determine pinyin for each Chinese char
-  // For pairs: we annotate using word-level pinyin when possible.
-  // Track which positions are covered by a forward pair to avoid
-  // looking up the same word twice.
-  const pinyinCache = {}; // index → { pinyin, fromWord }
+  const pinyinCache = {};
 
   for (let i = 0; i < chars.length; i++) {
     const ch = chars[i];
-
     if (!isChinese(ch)) {
-      // Punctuation or spaces
       html += `<span class="ann-punct">${ch}</span>`;
       continue;
     }
-
     const unknown = isUnknown(ch);
-
     if (!unknown) {
       html += `<span class="ann-known">${ch}</span>`;
       continue;
     }
-
-    // Unknown → need pinyin
     unknownCount++;
-
-    // Determine pinyin using word-priority logic
     let pinyin = '';
     let isMulti = false;
-
-    // Check forward pair: chars[i] + chars[i+1]
     const fwdWord = i + 1 < chars.length && isChinese(chars[i+1])
       ? chars[i] + chars[i + 1] : null;
-    // Check backward pair: chars[i-1] + chars[i]
     const bwdWord = i - 1 >= 0 && isChinese(chars[i-1])
       ? chars[i - 1] + chars[i] : null;
 
@@ -1247,30 +1240,22 @@ function annotateSentence() {
     const bwdValid = bwdWord && wordSet.has(bwdWord);
 
     if (fwdValid) {
-      // Use first syllable of the word's pinyin
       const wp = wordPinyinMap[fwdWord] || '';
       const parts = wp.trim().split(/\s+/);
       pinyin = parts[0] || getCharPinyin(ch);
     } else if (bwdValid) {
-      // Use second syllable of the word's pinyin
       const wp = wordPinyinMap[bwdWord] || '';
       const parts = wp.trim().split(/\s+/);
       pinyin = parts[1] || getCharPinyin(ch);
     } else {
       pinyin = getCharPinyin(ch);
-      // Check if it's a multi-pronunciation character
       if (pinyin && pinyin.includes('/')) isMulti = true;
     }
-
-    // If still no pinyin, just show the char without annotation
     if (!pinyin) {
       html += `<span class="ann-known" style="color:var(--rust)">${ch}</span>`;
       continue;
     }
-
-    // For display: take first pronunciation when multiple (from chars table)
     const displayPin = pinyin.split('/')[0].trim();
-
     html += `<span class="ann-ruby"><span class="ruby-char">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">(${displayPin})</span></span>`;
   }
 
@@ -1301,8 +1286,6 @@ function copyOriginalText() {
 }
 
 function copyAnnotatedText() {
-  // Build a single continuous plain-text string:
-  // known chars and punctuation as-is; unknown chars as 字(pīn) — no line breaks
   const wrap = document.querySelector('.annotated-text');
   if (!wrap) return;
   let plain = '';
@@ -1324,7 +1307,7 @@ function copyAnnotatedText() {
   });
 }
 
-// ── PWA ──────────────────────────────────────────────────────────────────────
+// ── PWA ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('teacher-sw.js').catch(() => {});
 }
