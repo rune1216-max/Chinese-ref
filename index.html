@@ -526,15 +526,14 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 }
 .lt-test-btn {
   flex: 1; padding: 4px 0;
-  border: 1.5px solid var(--mist); border-radius: 6px;
-  font-size: 1.2rem; font-weight: 900; /* Larger symbols */
-  cursor: pointer; background: var(--paper);
-  transition: all 0.15s; line-height: 1.2;
+  border: none; border-radius: 6px;
+  font-size: 1.6rem; font-weight: 900;
+  cursor: pointer; background: transparent;
+  transition: opacity 0.15s; line-height: 1.2;
 }
 .lt-test-btn.correct-btn   { color: #2d6a3f; }
 .lt-test-btn.incorrect-btn { color: #a93226; }
-.lt-test-btn.correct-btn:hover   { background: #d4edda; border-color: #2d6a3f; }
-.lt-test-btn.incorrect-btn:hover { background: #fde8e8; border-color: #a93226; }
+.lt-test-btn:hover { opacity: 0.7; }
 
 /* ── TILE COLOUR based on recent test performance ── */
 /* Applied via JS: data-perf="good|bad|mixed|none" */
@@ -750,8 +749,8 @@ function renderLearnedChars() {
         <div class="lt-pinyin">${pinyin}</div>
         <div class="lt-no">#${c.serialNo}</div>
         <div class="lt-test-btns" onclick="event.stopPropagation()">
-          <button class="lt-test-btn correct-btn"   onclick="recordTest('${c.character}',1)">✓</button>
-          <button class="lt-test-btn incorrect-btn" onclick="recordTest('${c.character}',0)">✗</button>
+          <button class="lt-test-btn correct-btn"   onclick="recordTest('${c.character}',1)">●</button>
+          <button class="lt-test-btn incorrect-btn" onclick="recordTest('${c.character}',0)">✕</button>
         </div>
       </div>`;
   }).join('');
