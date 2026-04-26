@@ -325,7 +325,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 
 .annotated-text {
   font-family: 'Noto Serif SC', serif;
-  font-size: 1.2rem; font-weight: 700;
+  font-size: 1.6rem; font-weight: 700;
   line-height: 2.2;
   word-break: break-all;
 }
@@ -481,12 +481,20 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   font-family: 'Noto Serif SC', serif;
   font-size: 1.5rem; font-weight: 700; color: var(--ink); line-height: 1;
 }
-.learned-tile .lt-pinyin {
-  font-size: 0.62rem; color: var(--bamboo); font-weight: 600; letter-spacing: 0.3px;
-}
+.learned-tile .lt-pinyin { display: none; }
 .learned-tile .lt-no {
   font-size: 0.58rem; color: #bbb; font-weight: 400;
 }
+/* ── TILE HISTORY DOTS ── */
+.lt-hist-dots {
+  display: flex; gap: 2px; justify-content: center;
+  margin-top: 3px; min-height: 9px;
+}
+.lt-hist-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.lt-hist-dot.c { background: #2e7d32; }
+.lt-hist-dot.x { background: #c62828; }
 
 /* ── CHAR MEANING (Claude API) ── */
 .char-meaning-section {
@@ -526,22 +534,25 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 }
 .lt-test-btn {
   flex: 1; padding: 4px 0;
-  border: none; border-radius: 6px;
-  font-size: 1.2rem; font-weight: 900;
-  cursor: pointer; background: transparent;
-  transition: opacity 0.15s; line-height: 1.2;
+  border: 1.5px solid var(--mist); border-radius: 6px;
+  font-size: 1.2rem; font-weight: 900; /* Larger symbols */
+  cursor: pointer; background: var(--paper);
+  transition: all 0.15s; line-height: 1.2;
 }
 .lt-test-btn.correct-btn   { color: #2d6a3f; }
 .lt-test-btn.incorrect-btn { color: #a93226; }
-.lt-test-btn:hover { opacity: 0.7; }
+.lt-test-btn.correct-btn:hover   { background: #d4edda; border-color: #2d6a3f; }
+.lt-test-btn.incorrect-btn:hover { background: #fde8e8; border-color: #a93226; }
 
-/* ── TILE COLOUR based on recent test performance ── */
-/* Applied via JS: data-perf="good|bad|mixed|none" */
-.learned-tile[data-perf="good-strong"]  { background: #c8e6c9; border-color: #81c784; }
-.learned-tile[data-perf="good-weak"]    { background: #e8f5e9; border-color: #a5d6a7; }
-.learned-tile[data-perf="bad-strong"]   { background: #ffcdd2; border-color: #e57373; }
-.learned-tile[data-perf="bad-weak"]     { background: #fde8e8; border-color: #ef9a9a; }
-.learned-tile[data-perf="mixed"]        { background: #fff9e6; border-color: #ffe082; }
+/* ── TILE COLOUR: net score of last 3 tests ── */
+/* net = correct - incorrect, range -3 to +3 */
+.learned-tile[data-perf="p3"]  { background: #a5d6a7; border-color: #2e7d32; }
+.learned-tile[data-perf="p2"]  { background: #c8e6c9; border-color: #43a047; }
+.learned-tile[data-perf="p1"]  { background: #e8f5e9; border-color: #81c784; }
+.learned-tile[data-perf="z0"]  { background: #fff9e6; border-color: #ffe082; }
+.learned-tile[data-perf="n1"]  { background: #ffcdd2; border-color: #ef9a9a; }
+.learned-tile[data-perf="n2"]  { background: #ef9a9a; border-color: #e57373; }
+.learned-tile[data-perf="n3"]  { background: #e57373; border-color: #c62828; }
 
 /* ── SYNC BUTTON ── */
 .sync-btn {
@@ -555,6 +566,84 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 .sync-btn:hover { background: #f0f8e8; }
 .sync-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* ── STICKY SYNC BAR ── */
+.learned-sticky-bar {
+  position: sticky;
+  top: calc(var(--header-h) + 46px);
+  z-index: 80;
+  background: var(--paper);
+  display: flex; justify-content: flex-end;
+  padding: 6px 0 8px; gap: 8px; align-items: center;
+  border-bottom: 1px solid var(--mist);
+  margin-bottom: 12px;
+}
+
+/* ── UNDO TOAST ── */
+#undo-toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: #2a2a2a; color: #fff;
+  padding: 10px 16px; border-radius: 24px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.82rem; font-weight: 700;
+  display: flex; align-items: center; gap: 10px;
+  z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+#undo-toast.visible { opacity: 1; pointer-events: auto; }
+#undo-toast .undo-btn {
+  background: var(--gold); color: #1a1a1a;
+  border: none; border-radius: 12px;
+  padding: 3px 12px; font-size: 0.78rem; font-weight: 900;
+  cursor: pointer; font-family: 'Noto Sans SC', sans-serif;
+}
+
+/* ── DICT CARD: sticky header + scrollable words ── */
+.char-card { position: relative; }
+.char-card-fixed {
+  position: sticky;
+  top: calc(var(--header-h) + 46px);
+  z-index: 70;
+  background: var(--card);
+  border: 2px solid var(--mist);
+  border-bottom: none;
+  border-radius: var(--r) var(--r) 0 0;
+  overflow: hidden;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.char-card-body {
+  border: 2px solid var(--mist);
+  border-top: none;
+  border-radius: 0 0 var(--r) var(--r);
+  overflow: hidden;
+  background: var(--card);
+}
+
+/* ── HEADER STATUS: clickable ── */
+.header-status {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.header-status:hover { background: rgba(255,255,255,0.15); }
+.header-status:active { opacity: 0.8; }
+
+/* ── TEST DOT DELETE (in dict card) ── */
+.test-dot-wrap {
+  position: relative; display: inline-flex;
+}
+.test-dot-wrap .dot-del {
+  display: none;
+  position: absolute; top: -5px; right: -5px;
+  width: 13px; height: 13px;
+  background: #555; color: #fff;
+  border: none; border-radius: 50%;
+  font-size: 0.55rem; line-height: 13px; text-align: center;
+  cursor: pointer; font-weight: 900; padding: 0;
+}
+.test-dot-wrap:hover .dot-del { display: block; }
+
 </style>
 </head>
 <body>
@@ -567,7 +656,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
       <div class="header-sub">Teacher Tools · 教学辅助</div>
     </div>
   </div>
-  <div class="header-status">
+  <div class="header-status" onclick="reloadData()" title="点击重新加载数据">
     <div class="status-dot" id="status-dot"></div>
     <span id="status-text">未加载</span>
   </div>
@@ -577,11 +666,11 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   <button class="tab active" onclick="switchTab('search')" id="tab-search">
     🔍 字典查询
   </button>
-  <button class="tab" onclick="switchTab('annotate')" id="tab-annotate">
-    📝 注音批注
-  </button>
   <button class="tab" onclick="switchTab('learned')" id="tab-learned">
     📚 已学字表
+  </button>
+  <button class="tab" onclick="switchTab('annotate')" id="tab-annotate">
+    📝 注音批注
   </button>
 </div>
 
@@ -614,10 +703,19 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
       </div>
     </div>
 
-    <button class="reload-btn" onclick="reloadData()" style="margin-top:20px;" id="reload-btn">
-      🔄 重新加载数据
-    </button>
+  </div>
 
+  <div class="panel" id="panel-learned">
+    <div class="learned-sticky-bar">
+      <span id="sync-status" style="font-size:0.75rem;color:#bbb;"></span>
+      <button class="sync-btn" id="sync-btn" onclick="syncTestsToSheets()">☁️ 同步到 Sheets</button>
+    </div>
+    <div id="learned-result">
+      <div class="empty-state">
+        <span class="e-icon">📚</span>
+        <p>请先设置已学字数阈值，并加载数据。</p>
+      </div>
+    </div>
   </div>
 
   <div class="panel" id="panel-annotate">
@@ -647,20 +745,13 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     </div>
 
   </div>
-  <div class="panel" id="panel-learned">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;align-items:center;">
-      <span id="sync-status" style="font-size:0.75rem;color:#bbb;"></span>
-      <button class="sync-btn" id="sync-btn" onclick="syncTestsToSheets()">☁️ 同步到 Sheets</button>
-    </div>
-    <div id="learned-result">
-      <div class="empty-state">
-        <span class="e-icon">📚</span>
-        <p>请先设置已学字数阈值，并加载数据。</p>
-      </div>
-    </div>
-  </div>
 
 </main>
+
+<div id="undo-toast">
+  <span id="undo-msg"></span>
+  <button class="undo-btn" onclick="undoLastTest()">撤销</button>
+</div>
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
@@ -677,6 +768,8 @@ let wordPinyinMap = {}; // word-string → pinyin
 
 // Test records: { char → [ {timestamp, result} ] }
 let testData = {};      // loaded from localStorage 'chineseTestData'
+let undoState = null;   // { ch, snapshot } for 3-sec undo
+let undoTimer = null;
 
 // ── INIT ────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -741,17 +834,17 @@ function renderLearnedChars() {
     .sort((a, b) => b.serialNo - a.serialNo);
 
   const tilesHtml = learned.map(c => {
-    const pinyin = c.pinyin.split('/')[0].trim();
     const perf = getTilePerf(c.character);
+    const histDots = getTileHistDots(c.character);
     return `
       <div class="learned-tile" data-perf="${perf}" onclick="jumpToSearch('${c.character}')">
         <div class="lt-char">${c.character}</div>
-        <div class="lt-pinyin">${pinyin}</div>
         <div class="lt-no">#${c.serialNo}</div>
         <div class="lt-test-btns" onclick="event.stopPropagation()">
-          <button class="lt-test-btn correct-btn"   onclick="recordTest('${c.character}',1)">●</button>
-          <button class="lt-test-btn incorrect-btn" onclick="recordTest('${c.character}',0)">X</button>
+          <button class="lt-test-btn correct-btn"   onclick="recordTest('${c.character}',1)">✓</button>
+          <button class="lt-test-btn incorrect-btn" onclick="recordTest('${c.character}',0)">✗</button>
         </div>
+        <div class="lt-hist-dots">${histDots}</div>
       </div>`;
   }).join('');
 
@@ -832,9 +925,11 @@ function loadCachedData() {
 }
 
 async function reloadData() {
-  const btn = document.getElementById('reload-btn');
-  btn.innerHTML = '<span class="spinner"></span> 加载中…';
-  btn.disabled = true;
+  const statusEl = document.getElementById('status-text');
+  const dot = document.getElementById('status-dot');
+  const origText = statusEl.textContent;
+  statusEl.textContent = '加载中…';
+  dot.className = 'status-dot';
   setStatus('', '加载中…');
 
   try {
@@ -864,18 +959,11 @@ async function reloadData() {
 
     localStorage.setItem('chineseAppData', JSON.stringify({ allCharData, allWordData, savedAt: Date.now() }));
     buildMaps();
-    
-    // Updated: Always overwrite local test data with sheet data during reload
     restoreTestsFromSheets(data.tests || [], true);
-    
     setStatus('ok', `${allCharData.length} 字 · ${allWordData.length} 词`);
-    btn.innerHTML = '✅ 加载完成';
-    setTimeout(() => { btn.innerHTML = '🔄 重新加载数据'; btn.disabled = false; }, 2000);
   } catch(err) {
     console.error(err);
     setStatus('err', '加载失败');
-    btn.innerHTML = '❌ 失败，点击重试';
-    btn.disabled = false;
   }
 }
 
@@ -926,7 +1014,7 @@ function searchChar() {
       }).join('');
 
   container.innerHTML = `
-    <div class="char-card">
+    <div class="char-card-fixed" id="char-card-fixed">
       <div class="char-card-top">
         <div class="char-big" id="search-char-big" title="长按跳转到已学字表">${ch}</div>
         <div class="char-meta">
@@ -940,6 +1028,8 @@ function searchChar() {
       </div>
       <div id="char-meaning-container"></div>
       ${renderTestHistoryHtml(ch)}
+    </div>
+    <div class="char-card-body">
       <div class="char-words-section">
         <div class="section-title">Words · 组词（共 ${matchedWords.length} 个）</div>
         <div class="words-grid">${wordsHtml}</div>
@@ -985,54 +1075,136 @@ function saveTestData() {
 }
 
 function recordTest(ch, result) {
+  // Save undo snapshot
+  undoState = { ch, snapshot: (testData[ch] || []).map(r => ({...r})) };
+
   if (!testData[ch]) testData[ch] = [];
   testData[ch].push({ timestamp: Date.now(), result });
   saveTestData();
 
-  const tiles = document.querySelectorAll(`.learned-tile`);
+  // Update tile in place
+  const tiles = document.querySelectorAll('.learned-tile');
   tiles.forEach(tile => {
     const charEl = tile.querySelector('.lt-char');
     if (charEl && charEl.textContent === ch) {
       tile.dataset.perf = getTilePerf(ch);
+      const dotsEl = tile.querySelector('.lt-hist-dots');
+      if (dotsEl) dotsEl.innerHTML = getTileHistDots(ch);
       const btn = result === 1
         ? tile.querySelector('.correct-btn')
         : tile.querySelector('.incorrect-btn');
       if (btn) {
-        btn.style.background = result === 1 ? '#d4edda' : '#fde8e8';
+        btn.style.background = result === 1 ? '#c8e6c9' : '#ffcdd2';
         setTimeout(() => { btn.style.background = ''; }, 600);
       }
     }
   });
 
+  // Update dict card history if open
   const histSection = document.getElementById('test-history-' + ch);
-  if (histSection) {
-    histSection.outerHTML = renderTestHistoryHtml(ch);
-  }
+  if (histSection) histSection.outerHTML = renderTestHistoryHtml(ch);
+
+  showUndoToast(ch, result);
+}
+
+function showUndoToast(ch, result) {
+  clearTimeout(undoTimer);
+  const label = result === 1 ? '✓' : '✗';
+  document.getElementById('undo-msg').textContent = `已记录「${ch}」${label}`;
+  const toast = document.getElementById('undo-toast');
+  toast.classList.add('visible');
+  undoTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+    undoState = null;
+  }, 3000);
+}
+
+function undoLastTest() {
+  if (!undoState) return;
+  clearTimeout(undoTimer);
+  const { ch, snapshot } = undoState;
+  testData[ch] = snapshot;
+  saveTestData();
+  undoState = null;
+  document.getElementById('undo-toast').classList.remove('visible');
+  // Update tile
+  const tiles = document.querySelectorAll('.learned-tile');
+  tiles.forEach(tile => {
+    const charEl = tile.querySelector('.lt-char');
+    if (charEl && charEl.textContent === ch) {
+      tile.dataset.perf = getTilePerf(ch);
+      const dotsEl = tile.querySelector('.lt-hist-dots');
+      if (dotsEl) dotsEl.innerHTML = getTileHistDots(ch);
+    }
+  });
+  const histSection = document.getElementById('test-history-' + ch);
+  if (histSection) histSection.outerHTML = renderTestHistoryHtml(ch);
 }
 
 function getTilePerf(ch) {
   const records = testData[ch];
   if (!records || records.length === 0) return 'none';
-  const recent = records.slice(-5);
+  const recent = records.slice(-3);
   const correct = recent.filter(r => r.result === 1).length;
-  const rate = correct / recent.length;
-  const count = recent.length;
-  if (rate >= 0.8)  return count >= 3 ? 'good-strong' : 'good-weak';
-  if (rate <= 0.4)  return count >= 3 ? 'bad-strong'  : 'bad-weak';
-  return 'mixed';
+  const net = correct - (recent.length - correct);
+  if (net >= 3)  return 'p3';
+  if (net === 2) return 'p2';
+  if (net === 1) return 'p1';
+  if (net === 0) return 'z0';
+  if (net === -1) return 'n1';
+  if (net === -2) return 'n2';
+  return 'n3';
+}
+
+function getTileHistDots(ch) {
+  const records = testData[ch];
+  if (!records || records.length === 0) return '';
+  return records.slice(-3).map(r =>
+    `<span class="lt-hist-dot ${r.result === 1 ? 'c' : 'x'}"></span>`
+  ).join('');
+}
+
+function deleteTestRecord(ch, idx) {
+  if (!testData[ch]) return;
+  // idx is index within the slice shown; map back to full array index
+  const total = testData[ch].length;
+  const shown = Math.min(total, 20);
+  const startOffset = total - shown;
+  const fullIdx = startOffset + idx;
+  testData[ch].splice(fullIdx, 1);
+  saveTestData();
+  // Refresh dict card history
+  const histSection = document.getElementById('test-history-' + ch);
+  if (histSection) histSection.outerHTML = renderTestHistoryHtml(ch);
+  // Refresh tile
+  const tiles = document.querySelectorAll('.learned-tile');
+  tiles.forEach(tile => {
+    const charEl = tile.querySelector('.lt-char');
+    if (charEl && charEl.textContent === ch) {
+      tile.dataset.perf = getTilePerf(ch);
+      const dotsEl = tile.querySelector('.lt-hist-dots');
+      if (dotsEl) dotsEl.innerHTML = getTileHistDots(ch);
+    }
+  });
 }
 
 function renderTestHistoryHtml(ch) {
   const records = testData[ch] || [];
-  const dotsHtml = records.length === 0
-    ? `<span class="test-history-empty">无测试记录</span>`
-    : records.slice(-20).map(r =>
-        `<span class="test-dot ${r.result === 1 ? 'correct' : 'incorrect'}">${r.result === 1 ? '✓' : '✗'}</span>`
-      ).join('') + (records.length > 20 ? `<span style="font-size:0.72rem;color:#bbb;">…共${records.length}次</span>` : '');
-
+  let dotsHtml;
+  if (records.length === 0) {
+    dotsHtml = `<span class="test-history-empty">暂无测试记录</span>`;
+  } else {
+    const shown = records.slice(-20);
+    dotsHtml = shown.map((r, i) =>
+      `<span class="test-dot-wrap">
+        <span class="test-dot ${r.result === 1 ? 'correct' : 'incorrect'}">${r.result === 1 ? '✓' : '✗'}</span>
+        <button class="dot-del" onclick="deleteTestRecord('${ch}',${i})" title="删除此条">×</button>
+      </span>`
+    ).join('') + (records.length > 20 ? `<span style="font-size:0.72rem;color:#bbb;">…共${records.length}次</span>` : '');
+  }
   return `
     <div class="test-history-section" id="test-history-${ch}">
-      <div class="section-title" style="margin-bottom:0;">测试记录</div>
+      <div class="section-title" style="margin-bottom:0;">测试记录 <span style="font-size:0.7rem;color:#bbb;font-weight:400;">（悬停可删除单条）</span></div>
       <div class="test-history-dots">${dotsHtml}</div>
     </div>`;
 }
@@ -1068,6 +1240,7 @@ async function syncTestsToSheets() {
   btn.textContent = '⏳ 同步中…';
   statusEl.textContent = '';
 
+  // Collect ALL records (Apps Script will deduplicate by timestamp)
   const records = [];
   Object.entries(testData).forEach(([ch, arr]) => {
     arr.forEach(r => records.push({ char: ch, timestamp: r.timestamp, result: r.result }));
@@ -1076,11 +1249,11 @@ async function syncTestsToSheets() {
   try {
     const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'syncTests', records }),
+      body: JSON.stringify({ action: 'syncTestsIncremental', records }),
     });
     const data = await res.json();
     if (data.success) {
-      statusEl.textContent = `✅ 已同步 ${records.length} 条`;
+      statusEl.textContent = `✅ +${data.added} 条新增`;
       btn.textContent = '☁️ 同步到 Sheets';
     } else {
       statusEl.textContent = '❌ 同步失败';
