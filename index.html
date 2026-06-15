@@ -25,7 +25,9 @@
   --shadow:  rgba(26,26,46,0.12);
   --card:    #fffdf8;
   --r:       16px;
-  --header-h: 73px; /* Estimated height for sticky offset */
+  --header-h: 73px;
+  --tabs-h:   46px;
+  --search-h: 64px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,7 +55,7 @@ header {
   padding: 16px 20px;
   display: flex; align-items: center; justify-content: space-between;
   box-shadow: 0 4px 24px rgba(0,0,0,0.25);
-  position: sticky; top: 0; z-index: 100; /* Fixed to top */
+  position: sticky; top: 0; z-index: 100;
 }
 header::after {
   content: '';
@@ -77,6 +79,95 @@ header::after {
 .header-title { font-size: 1.15rem; color: #fff; font-weight: 900; letter-spacing: 0.5px; }
 .header-sub   { display: none; }
 
+/* ── SETTINGS BUTTON & DROPDOWN ── */
+.settings-btn {
+  font-size: 0.8rem; color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  padding: 6px 12px; border-radius: 20px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; transition: background 0.2s;
+  font-family: 'Noto Sans SC', sans-serif; font-weight: 700;
+  user-select: none; -webkit-user-select: none;
+  position: relative;
+}
+.settings-btn:hover { background: rgba(255,255,255,0.18); }
+.settings-btn:active { opacity: 0.8; }
+.settings-btn .s-arrow {
+  font-size: 0.6rem; transition: transform 0.2s;
+  display: inline-block;
+}
+.settings-btn.open .s-arrow { transform: rotate(180deg); }
+
+.settings-dropdown {
+  display: none;
+  position: absolute; top: calc(100% + 10px); right: 0;
+  background: #fff;
+  border: 1.5px solid var(--mist);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  min-width: 260px;
+  z-index: 200;
+  overflow: hidden;
+  animation: dropIn 0.18s ease;
+}
+.settings-dropdown.open { display: block; }
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sd-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--mist);
+}
+.sd-section:last-child { border-bottom: none; }
+.sd-label {
+  font-size: 0.7rem; font-weight: 700; color: var(--bamboo);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 10px; display: block;
+}
+.sd-row {
+  display: flex; gap: 8px; align-items: center;
+}
+.sd-input {
+  flex: 1; padding: 8px 10px;
+  border: 1.5px solid var(--mist); border-radius: 10px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.95rem; font-weight: 700;
+  outline: none; background: var(--paper); color: var(--ink);
+  max-width: 100px;
+}
+.sd-input:focus { border-color: var(--bamboo); }
+.sd-save {
+  padding: 8px 14px;
+  background: var(--bamboo); color: #fff;
+  border: none; border-radius: 10px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; transition: background 0.2s;
+  white-space: nowrap;
+}
+.sd-save:hover { background: #3d6b20; }
+.sd-display {
+  font-size: 0.78rem; color: #999; margin-top: 6px;
+}
+.sd-display strong { color: var(--bamboo); }
+.sd-status-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.sd-status-info {
+  display: flex; align-items: center; gap: 6px;
+}
+.sd-reload {
+  padding: 6px 12px;
+  background: var(--paper); border: 1.5px solid var(--mist);
+  border-radius: 10px; color: var(--bamboo);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  white-space: nowrap;
+}
+.sd-reload:hover { background: #f0f8e8; border-color: var(--bamboo); }
+
 .header-status {
   font-size: 0.75rem; color: rgba(255,255,255,0.5);
   background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
@@ -94,7 +185,7 @@ header::after {
 .tabs {
   display: flex;
   background: #fff; border-bottom: 2px solid var(--mist);
-  position: sticky; top: var(--header-h); z-index: 90; /* Sticky below header */
+  position: sticky; top: var(--header-h); z-index: 90;
 }
 .tab {
   flex: 1; padding: 13px 8px; border: none; background: none;
@@ -108,7 +199,7 @@ header::after {
 .tab:hover:not(.active) { color: var(--bamboo2); background: rgba(74,124,47,0.04); }
 
 /* ── MAIN ── */
-main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative; z-index: 1; }
+main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relative; z-index: 1; }
 
 .panel { display: none; animation: slideUp 0.3s ease; }
 .panel.active { display: block; }
@@ -121,11 +212,14 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 .search-wrap {
   background: var(--card);
   border: 2px solid var(--mist);
-  border-radius: var(--r);
-  padding: 16px;
-  box-shadow: 0 4px 20px var(--shadow);
-  margin-bottom: 20px;
-  position: relative;
+  border-radius: 0;
+  padding: 10px 16px;
+  box-shadow: 0 4px 12px var(--shadow);
+  margin: 0 -16px;
+  position: sticky;
+  top: calc(var(--header-h) + var(--tabs-h));
+  z-index: 85;
+  border-left: none; border-right: none; border-top: none;
 }
 .search-label {
   font-size: 0.75rem; font-weight: 700; color: var(--bamboo);
@@ -569,7 +663,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 /* ── STICKY SYNC BAR ── */
 .learned-sticky-bar {
   position: sticky;
-  top: calc(var(--header-h) + 46px);
+  top: calc(var(--header-h) + var(--tabs-h));
   z-index: 80;
   background: var(--paper);
   display: flex; justify-content: flex-end;
@@ -603,7 +697,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 .char-card { position: relative; }
 .char-card-fixed {
   position: sticky;
-  top: calc(var(--header-h) + 46px);
+  top: calc(var(--header-h) + var(--tabs-h) + var(--search-h));
   z-index: 70;
   background: var(--card);
   border: 2px solid var(--mist);
@@ -620,14 +714,7 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
   background: var(--card);
 }
 
-/* ── HEADER STATUS: clickable ── */
-.header-status {
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.header-status:hover { background: rgba(255,255,255,0.15); }
-.header-status:active { opacity: 0.8; }
+/* ── HEADER STATUS (inside settings dropdown) ── */
 
 /* ── TEST DOT DELETE (in dict card) ── */
 .test-dot-wrap {
@@ -653,12 +740,33 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
     <div class="header-logo">汉字</div>
     <div class="header-titles">
       <div class="header-title">汉字助手</div>
-      <div class="header-sub">Teacher Tools · 教学辅助</div>
     </div>
   </div>
-  <div class="header-status" onclick="reloadData()" title="点击重新加载数据">
-    <div class="status-dot" id="status-dot"></div>
-    <span id="status-text">未加载</span>
+  <div style="position:relative;">
+    <button class="settings-btn" id="settings-btn" onclick="toggleSettings(event)">
+      ⚙️ 设置 <span class="s-arrow">▼</span>
+    </button>
+    <div class="settings-dropdown" id="settings-dropdown">
+      <div class="sd-section">
+        <span class="sd-label">📚 已学字数阈值</span>
+        <div class="sd-row">
+          <input type="number" class="sd-input" id="threshold-input"
+                 min="1" max="3500" placeholder="例：500">
+          <button class="sd-save" onclick="saveThreshold()">保存</button>
+        </div>
+        <div class="sd-display" id="threshold-display">—</div>
+      </div>
+      <div class="sd-section">
+        <span class="sd-label">🗄️ 数据状态</span>
+        <div class="sd-status-row">
+          <div class="sd-status-info">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">未加载</span>
+          </div>
+          <button class="sd-reload" onclick="reloadData()">🔄 重新加载</button>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -678,14 +786,6 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
 
   <div class="panel active" id="panel-search">
 
-    <div class="threshold-row">
-      <label>已学字数</label>
-      <input type="number" class="threshold-input" id="threshold-input"
-             min="1" max="3500" placeholder="例：500">
-      <button class="threshold-save" onclick="saveThreshold()">保存</button>
-      <span class="threshold-display" id="threshold-display">—</span>
-    </div>
-
     <div class="search-wrap">
       <span class="search-label">🔍 输入一个汉字（长按汉字跳转至字表）</span>
       <div class="search-row">
@@ -696,12 +796,16 @@ main { max-width: 720px; margin: 0 auto; padding: 24px 16px; position: relative;
       </div>
     </div>
 
+    <div id="char-result-wrap" style="padding-top:16px;">
+
     <div id="char-result">
       <div class="empty-state">
         <span class="e-icon">📖</span>
         <p>输入一个汉字，查看它在3500常用字中的序号、拼音，以及所有包含该字的组词。</p>
       </div>
     </div>
+
+    </div><!-- /char-result-wrap -->
 
   </div>
 
@@ -797,7 +901,13 @@ function scrollToCharInLearned(ch) {
   const tiles = document.querySelectorAll('.learned-tile');
   for (const tile of tiles) {
     if (tile.querySelector('.lt-char').textContent === ch) {
-      const headerOffset = document.getElementById('main-header').offsetHeight + document.getElementById('main-tabs').offsetHeight + 20;
+      const header = document.getElementById('main-header');
+      const tabs = document.getElementById('main-tabs');
+      const stickyBar = document.querySelector('.learned-sticky-bar');
+      const headerOffset = (header ? header.offsetHeight : 0)
+                         + (tabs   ? tabs.offsetHeight   : 0)
+                         + (stickyBar ? stickyBar.offsetHeight : 0)
+                         + 12; // extra breathing room
       const elementPosition = tile.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
 
@@ -807,9 +917,10 @@ function scrollToCharInLearned(ch) {
       });
       
       // Visual feedback
-      tile.style.transition = 'transform 0.3s';
+      tile.style.transition = 'box-shadow 0.3s, transform 0.3s';
       tile.style.transform = 'scale(1.1)';
-      setTimeout(() => tile.style.transform = '', 500);
+      tile.style.boxShadow = '0 0 0 3px var(--gold)';
+      setTimeout(() => { tile.style.transform = ''; tile.style.boxShadow = ''; }, 700);
       break;
     }
   }
@@ -870,13 +981,41 @@ function loadThreshold() {
     updateThresholdDisplay();
   }
 }
+
 function saveThreshold() {
   const val = parseInt(document.getElementById('threshold-input').value);
   if (!val || val < 1) { alert('请输入有效的字数（1–3500）'); return; }
   threshold = val;
   localStorage.setItem('teacherAppThreshold', threshold);
   updateThresholdDisplay();
+  // Close dropdown after save
+  document.getElementById('settings-dropdown').classList.remove('open');
+  document.getElementById('settings-btn').classList.remove('open');
 }
+
+function toggleSettings(e) {
+  e.stopPropagation();
+  const btn = document.getElementById('settings-btn');
+  const dd  = document.getElementById('settings-dropdown');
+  const isOpen = dd.classList.contains('open');
+  if (isOpen) {
+    dd.classList.remove('open');
+    btn.classList.remove('open');
+  } else {
+    dd.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const btn = document.getElementById('settings-btn');
+  const dd  = document.getElementById('settings-dropdown');
+  if (btn && dd && !btn.contains(e.target) && !dd.contains(e.target)) {
+    dd.classList.remove('open');
+    btn.classList.remove('open');
+  }
+});
 function updateThresholdDisplay() {
   const d = threshold === 9999 ? '全部' : `前 ${threshold} 字`;
   document.getElementById('threshold-display').innerHTML = `当前：<strong>${d}</strong>`;
