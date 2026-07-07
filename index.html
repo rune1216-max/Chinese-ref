@@ -297,6 +297,23 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 }
 .char-serial span { color: rgba(201,168,76,0.9); font-weight: 700; }
 
+.char-jump-arrow {
+  flex-shrink: 0;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.3);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  padding: 0;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+.char-jump-arrow:hover  { background: rgba(255,255,255,0.24); }
+.char-jump-arrow:active { transform: scale(0.92); }
+
 .char-words-section { padding: 20px; }
 .section-title {
   font-size: 0.75rem; font-weight: 700; color: var(--bamboo);
@@ -787,7 +804,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   <div class="panel active" id="panel-search">
 
     <div class="search-wrap">
-      <span class="search-label">🔍 输入一个汉字（长按汉字跳转至字表）</span>
+      <span class="search-label">🔍 输入一个汉字</span>
       <div class="search-row">
         <input class="search-input" id="char-input" type="text"
                maxlength="1" placeholder="输入单个汉字…"
@@ -1155,7 +1172,7 @@ function searchChar() {
   container.innerHTML = `
     <div class="char-card-fixed" id="char-card-fixed">
       <div class="char-card-top">
-        <div class="char-big" id="search-char-big" title="长按跳转到已学字表">${ch}</div>
+        <div class="char-big" id="search-char-big">${ch}</div>
         <div class="char-meta">
           <div class="char-pinyin">${pinyinHtml}</div>
           <div class="char-serial">3500常用字 第 <span>#${found.serialNo}</span> 号</div>
@@ -1164,6 +1181,7 @@ function searchChar() {
             : `<div style="margin-top:6px;font-size:0.75rem;color:rgba(255,107,107,0.9);">📖 超出当前阈值（> ${threshold}）</div>`
           }
         </div>
+        <button class="char-jump-arrow" onclick="handleJumpArrowClick('${ch}', ${found.serialNo})" title="跳转到已学字表">→</button>
       </div>
       <div id="char-meaning-container"></div>
       ${renderTestHistoryHtml(ch)}
@@ -1176,26 +1194,21 @@ function searchChar() {
     </div>`;
 
   fetchCharMeaning(ch);
-  
-  // Add long press detection
-  const charBig = document.getElementById('search-char-big');
-  let pressTimer;
-  const startPress = (e) => {
-    pressTimer = setTimeout(() => {
-      if (found.serialNo <= threshold) {
-        switchTab('learned', ch);
-      } else {
-        alert(`「${ch}」序号为 #${found.serialNo}，大于当前阈值 ${threshold}，不在已学字表中。`);
-      }
-    }, 500);
-  };
-  const clearPress = () => clearTimeout(pressTimer);
-  
-  charBig.addEventListener('mousedown', startPress);
-  charBig.addEventListener('touchstart', startPress);
-  charBig.addEventListener('mouseup', clearPress);
-  charBig.addEventListener('mouseleave', clearPress);
-  charBig.addEventListener('touchend', clearPress);
+
+  // Always show the result from the very top (avoids the dark-green
+  // header card being partially covered when scroll position carries
+  // over from a previous tab/scroll state).
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  });
+}
+
+function handleJumpArrowClick(ch, serialNo) {
+  if (serialNo <= threshold) {
+    switchTab('learned', ch);
+  } else {
+    alert(`「${ch}」序号为 #${serialNo}，大于当前阈值 ${threshold}，不在已学字表中。`);
+  }
 }
 
 // ── TEST DATA ─────────────────────────────────────────────────────────────────
