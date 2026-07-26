@@ -27,7 +27,7 @@
   --r:       16px;
   --header-h: 73px;
   --tabs-h:   46px;
-  --search-h: 64px;
+  --search-h: 50px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -213,7 +213,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   background: var(--card);
   border: 2px solid var(--mist);
   border-radius: 0;
-  padding: 10px 16px;
+  padding: 7px 16px;
   box-shadow: 0 4px 12px var(--shadow);
   margin: 0 -16px;
   position: sticky;
@@ -222,21 +222,21 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   border-left: none; border-right: none; border-top: none;
 }
 .search-label {
-  font-size: 0.75rem; font-weight: 700; color: var(--bamboo);
+  font-size: 0.66rem; font-weight: 700; color: var(--bamboo);
   letter-spacing: 1px; text-transform: uppercase;
-  margin-bottom: 8px; display: block;
+  margin-bottom: 5px; display: block;
 }
 .search-row {
-  display: flex; gap: 10px; align-items: center;
+  display: flex; gap: 8px; align-items: center;
 }
 .search-input {
-  width: 210px;
+  width: 130px;
   flex: none;
   font-family: 'Noto Serif SC', serif;
-  font-size: 1.5rem; font-weight: 700;
-  padding: 10px 12px;
+  font-size: 1.1rem; font-weight: 700;
+  padding: 6px 10px;
   border: 2px solid var(--mist);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--paper);
   color: var(--ink);
   outline: none;
@@ -244,14 +244,14 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   text-align: center;
 }
 .search-input:focus { border-color: var(--bamboo); }
-.search-input::placeholder { font-size: 0.85rem; color: #bbb; font-weight: 400; font-family: 'Noto Sans SC', sans-serif; }
+.search-input::placeholder { font-size: 0.72rem; color: #bbb; font-weight: 400; font-family: 'Noto Sans SC', sans-serif; }
 
 .search-btn {
-  padding: 10px 20px;
+  padding: 7px 16px;
   background: linear-gradient(135deg, var(--bamboo), var(--bamboo2));
-  color: #fff; border: none; border-radius: 12px;
+  color: #fff; border: none; border-radius: 10px;
   font-family: 'Noto Sans SC', sans-serif;
-  font-size: 0.95rem; font-weight: 700;
+  font-size: 0.85rem; font-weight: 700;
   cursor: pointer; transition: all 0.18s;
   white-space: nowrap;
 }
@@ -332,6 +332,27 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 .char-test-btn-float.correct   { background: #d4edda; color: #2d6a3f; }
 .char-test-btn-float.incorrect { background: #fde8e8; color: #a93226; }
 .char-test-btn-float:active { transform: scale(0.88); }
+
+/* ── FLOATING TOP/BOTTOM NAV (search & learned tabs only) ── */
+.float-nav {
+  position: fixed; left: 16px; bottom: 24px;
+  display: none;
+  flex-direction: column; gap: 8px;
+  z-index: 150;
+}
+.float-nav.visible { display: flex; }
+.float-nav-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--bamboo); color: #fff; border: none;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  font-size: 1.15rem; font-weight: 900; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, transform 0.15s, opacity 0.2s;
+  opacity: 0.82;
+}
+.float-nav-btn:hover  { background: #3d6b20; opacity: 1; }
+.float-nav-btn:active { transform: scale(0.9); }
 
 .char-words-section { padding: 20px; }
 .section-title {
@@ -702,7 +723,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   top: calc(var(--header-h) + var(--tabs-h));
   z-index: 80;
   background: var(--paper);
-  display: flex; justify-content: flex-end;
+  display: flex; justify-content: space-between;
   padding: 6px 0 8px; gap: 8px; align-items: center;
   border-bottom: 1px solid var(--mist);
   margin-bottom: 12px;
@@ -832,7 +853,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
       </div>
     </div>
 
-    <div id="char-result-wrap" style="padding-top:16px;">
+    <div id="char-result-wrap" style="padding-top:0;">
 
     <div id="char-result">
       <div class="empty-state">
@@ -847,8 +868,11 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 
   <div class="panel" id="panel-learned">
     <div class="learned-sticky-bar">
-      <span id="sync-status" style="font-size:0.75rem;color:#bbb;"></span>
-      <button class="sync-btn" id="sync-btn" onclick="syncTestsToSheets()">☁️ 同步到 Sheets</button>
+      <button class="sync-btn" id="sort-toggle-btn" onclick="toggleSortMode()">🕐 按测试时间排序</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="sync-status" style="font-size:0.75rem;color:#bbb;"></span>
+        <button class="sync-btn" id="sync-btn" onclick="syncTestsToSheets()">☁️ 同步到 Sheets</button>
+      </div>
     </div>
     <div id="learned-result">
       <div class="empty-state">
@@ -893,6 +917,11 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   <button class="undo-btn" onclick="undoLastTest()">撤销</button>
 </div>
 
+<div class="float-nav" id="float-nav">
+  <button class="float-nav-btn" onclick="scrollToPageTop()" title="回到顶部">↑</button>
+  <button class="float-nav-btn" onclick="scrollToPageBottom()" title="跳到底部">↓</button>
+</div>
+
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxgh46y5Aczzjow6kG6ogHYFdmNhDo8D_dNXlvze8WggTsdw9VS-_BRgJhLO-6Cot8/exec';
@@ -910,12 +939,15 @@ let wordPinyinMap = {}; // word-string → pinyin
 let testData = {};      // loaded from localStorage 'chineseTestData'
 let undoState = null;   // { ch, snapshot } for 3-sec undo
 let undoTimer = null;
+let learnedSortMode = localStorage.getItem('teacherAppSortMode') || 'serial'; // 'serial' | 'testTime'
 
 // ── INIT ────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   loadThreshold();
   loadCachedData();
   loadTestData();
+  updateSortToggleBtn();
+  updateFloatNavVisibility();
 });
 
 // ── TABS ─────────────────────────────────────────────────────────────────────
@@ -940,6 +972,24 @@ function switchTab(tab, targetChar = null) {
       window.scrollTo({ top: 0, behavior: 'auto' });
     });
   }
+
+  updateFloatNavVisibility();
+}
+
+function updateFloatNavVisibility() {
+  const nav = document.getElementById('float-nav');
+  if (!nav) return;
+  const activeTab = document.getElementById('tab-search').classList.contains('active')
+    || document.getElementById('tab-learned').classList.contains('active');
+  nav.classList.toggle('visible', activeTab);
+}
+
+function scrollToPageTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function scrollToPageBottom() {
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
 }
 
 function scrollToCharInLearned(ch) {
@@ -984,10 +1034,22 @@ function renderLearnedChars() {
     return;
   }
 
-  // Filter chars within threshold, sort descending (most recent first)
-  const learned = allCharData
-    .filter(c => c.serialNo <= threshold)
-    .sort((a, b) => b.serialNo - a.serialNo);
+  // Filter chars within threshold, then sort per current sort mode
+  const learned = allCharData.filter(c => c.serialNo <= threshold);
+
+  if (learnedSortMode === 'testTime') {
+    learned.sort((a, b) => {
+      const ta = getLastTestTime(a.character);
+      const tb = getLastTestTime(b.character);
+      const aUntested = ta === -1, bUntested = tb === -1;
+      if (aUntested && bUntested) return b.serialNo - a.serialNo; // both untested: fall back to serial desc
+      if (aUntested) return -1;   // untested chars first
+      if (bUntested) return 1;
+      return tb - ta;             // most recently tested first
+    });
+  } else {
+    learned.sort((a, b) => b.serialNo - a.serialNo); // most recently learned first
+  }
 
   const tilesHtml = learned.map(c => {
     const perf = getTilePerf(c.character);
@@ -1004,11 +1066,36 @@ function renderLearnedChars() {
       </div>`;
   }).join('');
 
+  const headerNote = learnedSortMode === 'testTime'
+    ? '未测试的优先，其余按最近测试时间排序'
+    : '最近学的在前';
+
   container.innerHTML = `
     <div class="learned-header">
-      <span class="learned-header-info">📚 已学 ${learned.length} 个字（序号 1–${threshold}），最近学的在前</span>
+      <span class="learned-header-info">📚 已学 ${learned.length} 个字（序号 1–${threshold}），${headerNote}</span>
     </div>
     <div class="learned-grid">${tilesHtml}</div>`;
+}
+
+function getLastTestTime(ch) {
+  const records = testData[ch];
+  if (!records || records.length === 0) return -1;
+  let max = -1;
+  for (const r of records) if (r.timestamp > max) max = r.timestamp;
+  return max;
+}
+
+function toggleSortMode() {
+  learnedSortMode = learnedSortMode === 'serial' ? 'testTime' : 'serial';
+  localStorage.setItem('teacherAppSortMode', learnedSortMode);
+  updateSortToggleBtn();
+  renderLearnedChars();
+}
+
+function updateSortToggleBtn() {
+  const btn = document.getElementById('sort-toggle-btn');
+  if (!btn) return;
+  btn.textContent = learnedSortMode === 'serial' ? '🕐 按测试时间排序' : '🔢 按学习顺序排序';
 }
 
 function jumpToSearch(ch) {
@@ -1096,8 +1183,8 @@ function loadCachedData() {
     const raw = localStorage.getItem('chineseAppData');
     if (!raw) { setStatus('', '未加载'); return; }
     const cached = JSON.parse(raw);
-    allCharData = cached.allCharData || cached.charData || [];
-    allWordData = cached.allWordData || cached.wordData || [];
+    allCharData = (cached.allCharData || cached.charData || []).map(c => ({ ...c, pinyin: (c.pinyin || '').normalize('NFC') }));
+    allWordData = (cached.allWordData || cached.wordData || []).map(w => ({ ...w, pinyin: (w.pinyin || '').normalize('NFC') }));
     if (allCharData.length > 0) {
       buildMaps();
       const date = cached.savedAt ? new Date(cached.savedAt).toLocaleDateString('zh-CN') : '之前';
@@ -1124,7 +1211,7 @@ async function reloadData() {
     const ci = charHeader.map(h => String(h).toLowerCase().trim());
     allCharData = charRows.map(r => ({
       character: String(r[ci.indexOf('character')] || '').trim(),
-      pinyin:    String(r[ci.indexOf('pinyin')]    || '').trim(),
+      pinyin:    String(r[ci.indexOf('pinyin')]    || '').trim().normalize('NFC'),
       serialNo:  parseInt(r[ci.indexOf('no')]      || r[2] || 9999),
       words:     String(r[ci.indexOf('words')]     || r[3] || '').split(/[,，]/).map(w => w.trim()).filter(Boolean),
       meaning:   ci.indexOf('meaning') !== -1 ? String(r[ci.indexOf('meaning')] || '').trim() : '',
@@ -1138,7 +1225,7 @@ async function reloadData() {
     allWordData = wordRows.map(r => ({
       word:    String(r[wCol]    || '').trim(),
       meaning: String(r[mCol]   || '').trim(),
-      pinyin:  String(r[pCol] !== undefined ? r[pCol] : (r[2] || '')).trim(),
+      pinyin:  String(r[pCol] !== undefined ? r[pCol] : (r[2] || '')).trim().normalize('NFC'),
     })).filter(r => r.word && r.meaning);
 
     localStorage.setItem('chineseAppData', JSON.stringify({ allCharData, allWordData, savedAt: Date.now() }));
