@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="汉字助手">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700;900&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+SC:wght@300;400;700;900&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -416,13 +416,54 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 .no-result .no-icon { font-size: 3rem; display: block; margin-bottom: 10px; }
 
 /* ── PINYIN PANEL ── */
+.annotate-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (min-width: 640px) {
+  .annotate-cols {
+    flex-direction: row;
+    align-items: stretch;
+    width: 100vw;
+    max-width: 1400px;
+    margin-left: 50%;
+    transform: translateX(-50%);
+    padding: 0 24px;
+    box-sizing: border-box;
+  }
+  .annotate-cols > .annotate-col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .annotate-cols .textarea-wrap,
+  .annotate-cols .result-box {
+    height: 65vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .annotate-cols .sentence-input {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .annotate-cols .annotated-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
 .textarea-wrap {
   background: var(--card);
   border: 2px solid var(--mist);
   border-radius: var(--r);
   overflow: hidden;
   box-shadow: 0 4px 20px var(--shadow);
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 .textarea-header {
   padding: 10px 16px; background: var(--paper);
@@ -446,39 +487,40 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   font-size: 1.4rem; font-weight: 400; line-height: 1.8;
   border: none; outline: none; resize: none;
   background: var(--card); color: var(--ink);
-  min-height: 100px;
+  min-height: 140px;
 }
 
-.annotate-btn {
-  width: 100%; padding: 16px;
-  background: linear-gradient(135deg, #1a2f0e, var(--bamboo));
-  color: #fff; border: none; border-radius: var(--r);
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 1.05rem; font-weight: 800;
-  cursor: pointer; transition: all 0.2s;
-  margin-bottom: 20px;
-  letter-spacing: 0.5px;
-  box-shadow: 0 4px 18px rgba(45,80,22,0.35);
-}
-.annotate-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(45,80,22,0.45); }
-.annotate-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
-
-/* ── ANNOTATED RESULT ── */
-.annotated-wrap {
+/* ── ANNOTATED RESULT (框样式，与输入框对称) ── */
+.result-box {
   background: var(--card);
   border: 2px solid var(--mist);
   border-radius: var(--r);
-  padding: 24px 20px;
-  box-shadow: 0 6px 28px var(--shadow);
+  overflow: hidden;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+.result-box .textarea-header span.live-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--bamboo2); margin-right: 5px;
+  box-shadow: 0 0 0 rgba(107,168,74,0.5); animation: pulseDot 2s infinite;
+}
+@keyframes pulseDot {
+  0% { box-shadow: 0 0 0 0 rgba(107,168,74,0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(107,168,74,0); }
+  100% { box-shadow: 0 0 0 0 rgba(107,168,74,0); }
+}
+
+.annotated-wrap {
+  padding: 16px;
   animation: fadeIn 0.4s ease;
-  line-height: 2;
+  min-height: 140px;
 }
 
 .annotated-text {
   font-family: 'Noto Serif SC', serif;
   font-size: 1.6rem; font-weight: 700;
-  line-height: 2.2;
-  word-break: break-all;
+  line-height: 2.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Known character — plain */
@@ -486,18 +528,30 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
   color: var(--ink);
 }
 
-/* Unknown character — char + (pinyin) inline */
+/* Unknown character — char + (pinyin) inline, 已收录但未学：不标红 */
 .ann-ruby {
   display: inline;
 }
 .ann-ruby .ruby-char {
+  color: var(--ink);
+  font-weight: 700;
+}
+/* 不在 Characters 表中的字：标红提示老师核实 */
+.ann-ruby .ruby-char-notfound {
+  color: var(--rust);
+  font-weight: 700;
+}
+/* 完全查不到拼音的字（不在表中且无法从组词推断）：整字标红，不加注音 */
+.ann-notfound {
   color: var(--rust);
   font-weight: 700;
 }
 .ann-ruby .ruby-pin {
-  font-size: 0.85rem; color: var(--bamboo);
-  font-family: 'Noto Sans SC', sans-serif;
-  font-weight: 700; letter-spacing: 0.5px;
+  font-size: 0.82rem; color: var(--bamboo);
+  font-family: 'Noto Sans', 'Noto Sans SC', sans-serif;
+  font-weight: 700; letter-spacing: 0;
+  font-feature-settings: "liga" 0;
+  padding-top: 2px;
 }
 
 /* Punctuation / spaces */
@@ -888,23 +942,33 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
       ℹ️ 只有序号大于阈值（未学）的字才会标注拼音。阈值：<strong id="threshold-hint">未设置</strong>
     </div>
 
-    <div class="textarea-wrap">
-      <div class="textarea-header">
-        <span>📝 输入句子</span>
-        <button class="clear-btn" onclick="clearSentence()">清空</button>
+    <div class="annotate-cols">
+      <div class="annotate-col">
+        <div class="textarea-wrap">
+          <div class="textarea-header">
+            <span>📝 原文</span>
+            <button class="clear-btn" onclick="clearSentence()">清空</button>
+          </div>
+          <textarea class="sentence-input" id="sentence-input"
+                    rows="4" placeholder="在此输入或粘贴需要标注的中文句子，自动生成注音…"
+                    oninput="onSentenceInput()"></textarea>
+        </div>
       </div>
-      <textarea class="sentence-input" id="sentence-input"
-                rows="4" placeholder="在此输入需要标注的中文句子…"></textarea>
-    </div>
 
-    <button class="annotate-btn" onclick="annotateSentence()" id="annotate-btn">
-      ✨ 自动标注拼音
-    </button>
-
-    <div id="annotate-result">
-      <div class="empty-state">
-        <span class="e-icon">✍️</span>
-        <p>输入句子后点击「自动标注拼音」，<br>未学的字会自动显示拼音注音。</p>
+      <div class="annotate-col">
+        <div class="result-box">
+          <div class="textarea-header">
+            <span><span class="live-dot"></span>✍️ 标注结果</span>
+          </div>
+          <div id="annotate-result">
+            <div class="annotated-wrap">
+              <div class="empty-state" style="padding:20px 0;">
+                <span class="e-icon">✍️</span>
+                <p>输入句子后自动显示拼音注音。</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1633,21 +1697,36 @@ function isChinese(ch) {
   return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch);
 }
 
+// 字符状态：notFound = 不在 Characters 表中；unknown = 在表中但序号 > 阈值（未学）
+function getCharStatus(ch) {
+  const entry = charMap[ch];
+  if (!entry) return { notFound: true, unknown: false };
+  return { notFound: false, unknown: entry.serialNo > threshold };
+}
+
+let annotateDebounceTimer = null;
+function onSentenceInput() {
+  clearTimeout(annotateDebounceTimer);
+  annotateDebounceTimer = setTimeout(annotateSentence, 150);
+}
+
 function clearSentence() {
   document.getElementById('sentence-input').value = '';
   document.getElementById('annotate-result').innerHTML = `
-    <div class="empty-state">
-      <span class="e-icon">✍️</span>
-      <p>输入句子后点击「自动标注拼音」，<br>未学的字会自动显示拼音注音。</p>
+    <div class="annotated-wrap">
+      <div class="empty-state" style="padding:20px 0;">
+        <span class="e-icon">✍️</span>
+        <p>输入句子后自动显示拼音注音。</p>
+      </div>
     </div>`;
 }
 
 function annotateSentence() {
-  const text = document.getElementById('sentence-input').value.trim();
+  const text = document.getElementById('sentence-input').value;
   const container = document.getElementById('annotate-result');
 
-  if (!text) {
-    container.innerHTML = `<div class="no-result"><span class="no-icon">🤔</span>请先输入句子</div>`;
+  if (!text.trim()) {
+    clearSentence();
     return;
   }
   if (allCharData.length === 0) {
@@ -1658,20 +1737,28 @@ function annotateSentence() {
   const chars = Array.from(text);
   let html = '';
   let unknownCount = 0;
-  const pinyinCache = {};
+  let notFoundCount = 0;
 
   for (let i = 0; i < chars.length; i++) {
     const ch = chars[i];
+
+    if (ch === '\n') { html += '<br>'; continue; }
     if (!isChinese(ch)) {
       html += `<span class="ann-punct">${ch}</span>`;
       continue;
     }
-    const unknown = isUnknown(ch);
-    if (!unknown) {
+
+    const { notFound, unknown } = getCharStatus(ch);
+
+    if (!notFound && !unknown) {
+      // 已学字：直接显示，不标注
       html += `<span class="ann-known">${ch}</span>`;
       continue;
     }
-    unknownCount++;
+
+    // 未学字 或 未收录字：尝试标注拼音
+    if (notFound) notFoundCount++; else unknownCount++;
+
     let pinyin = '';
     let isMulti = false;
     const fwdWord = i + 1 < chars.length && isChinese(chars[i+1])
@@ -1685,37 +1772,50 @@ function annotateSentence() {
     if (fwdValid) {
       const wp = wordPinyinMap[fwdWord] || '';
       const parts = wp.trim().split(/\s+/);
-      pinyin = parts[0] || getCharPinyin(ch);
+      pinyin = (parts[0] && parts[0].split('/')[0].trim()) ? parts[0] : getCharPinyin(ch);
     } else if (bwdValid) {
       const wp = wordPinyinMap[bwdWord] || '';
       const parts = wp.trim().split(/\s+/);
-      pinyin = parts[1] || getCharPinyin(ch);
+      pinyin = (parts[1] && parts[1].split('/')[0].trim()) ? parts[1] : getCharPinyin(ch);
     } else {
       pinyin = getCharPinyin(ch);
       if (pinyin && pinyin.includes('/')) isMulti = true;
     }
+
     if (!pinyin) {
-      html += `<span class="ann-known" style="color:var(--rust)">${ch}</span>`;
+      // 查不到拼音：整字标红，不加注音（无论是否收录在表中）
+      html += `<span class="ann-notfound">${ch}</span>`;
       continue;
     }
+
     const displayPin = pinyin.split('/')[0].trim();
-    html += `<span class="ann-ruby"><span class="ruby-char">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">(${displayPin})</span></span>`;
+    if (!displayPin) {
+      // 兜底：拼音字段异常（如空白/格式错误）导致取不到有效显示值，按查不到处理
+      html += `<span class="ann-notfound">${ch}</span>`;
+      continue;
+    }
+    const charClass = notFound ? 'ruby-char-notfound' : 'ruby-char';
+    html += `<span class="ann-ruby"><span class="${charClass}">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">(${displayPin})</span></span>`;
   }
 
-  const summaryColor = unknownCount === 0 ? 'var(--bamboo)' : 'var(--rust)';
+  const hasFlag = unknownCount > 0 || notFoundCount > 0;
+  const summaryColor = !hasFlag ? 'var(--bamboo)' : (notFoundCount > 0 ? 'var(--rust)' : 'var(--bamboo)');
+  const summaryParts = [];
+  if (unknownCount > 0) summaryParts.push(`${unknownCount} 个未学字已标注`);
+  if (notFoundCount > 0) summaryParts.push(`${notFoundCount} 个字未收录（红色）`);
+  const summaryText = hasFlag ? `📖 ${summaryParts.join('，')}` : '✅ 全部在学习范围内';
+
   container.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <span style="font-size:0.78rem;font-weight:700;color:${summaryColor};">
-        ${unknownCount === 0 ? '✅ 全部在学习范围内' : `📖 共 ${unknownCount} 个未学字已标注拼音`}
-      </span>
-      <span style="font-size:0.75rem;color:#bbb;">阈值：${threshold === 9999 ? '未设置' : threshold}</span>
-    </div>
     <div class="annotated-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:6px;">
+        <span style="font-size:0.78rem;font-weight:700;color:${summaryColor};">${summaryText}</span>
+        <span style="font-size:0.75rem;color:#bbb;">阈值：${threshold === 9999 ? '未设置' : threshold}</span>
+      </div>
       <div class="annotated-text">${html}</div>
-    </div>
-    <div class="result-actions">
-      <button class="action-btn" onclick="copyOriginalText()">📋 复制原文</button>
-      <button class="action-btn" onclick="copyAnnotatedText()">📋 复制带注音文本</button>
+      <div class="result-actions" style="margin-top:16px;">
+        <button class="action-btn" onclick="copyOriginalText()">📋 复制原文</button>
+        <button class="action-btn" onclick="copyAnnotatedText()">📋 复制带注音文本</button>
+      </div>
     </div>`;
 }
 
@@ -1735,8 +1835,10 @@ function copyAnnotatedText() {
   wrap.childNodes.forEach(node => {
     if (node.nodeType === Node.TEXT_NODE) {
       plain += node.textContent;
+    } else if (node.tagName === 'BR') {
+      plain += '\n';
     } else if (node.classList && node.classList.contains('ann-ruby')) {
-      const charEl = node.querySelector('.ruby-char');
+      const charEl = node.querySelector('.ruby-char, .ruby-char-notfound');
       const pinEl  = node.querySelector('.ruby-pin');
       plain += (charEl ? charEl.textContent : '') + (pinEl ? pinEl.textContent : '');
     } else {
