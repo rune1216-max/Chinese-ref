@@ -1990,11 +1990,11 @@ function looksLikePinyin(content) {
   return /^[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü\s/'\-1-5]+$/.test(trimmed);
 }
 
-// 去掉原文里已有的拼音括号注音（半角/全角括号均支持），保留其余括号原样
+// 去掉原文里已有的拼音注音（支持半角/全角圆括号 () （） 以及尖括号 <>），保留其余括号原样
 function stripExistingPinyin(text) {
-  return text.replace(/[（(]([^（）()]*)[）)]/g, (match, inner) =>
-    looksLikePinyin(inner) ? '' : match
-  );
+  return text
+    .replace(/[（(]([^（）()]*)[）)]/g, (match, inner) => looksLikePinyin(inner) ? '' : match)
+    .replace(/<([^<>]*)>/g, (match, inner) => looksLikePinyin(inner) ? '' : match);
 }
 
 // 字符状态：notFound = 不在 Characters 表中；unknown = 在表中但序号 > 阈值（未学）
@@ -2104,7 +2104,7 @@ function annotateSentence() {
       continue;
     }
     const charClass = notFound ? 'ruby-char-notfound' : 'ruby-char';
-    html += `<span class="ann-ruby"><span class="${charClass}">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">(${displayPin})</span></span>`;
+    html += `<span class="ann-ruby"><span class="${charClass}">${ch}</span><span class="ruby-pin${isMulti ? ' multi' : ''}">&lt;${displayPin}&gt;</span></span>`;
   }
 
   const hasFlag = unknownCount > 0 || notFoundCount > 0;
