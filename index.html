@@ -483,8 +483,8 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 
 .sentence-input {
   width: 100%; padding: 16px;
-  font-family: 'Noto Serif SC', serif;
-  font-size: 1.4rem; font-weight: 400; line-height: 1.8;
+  font-family: 'Microsoft YaHei Light', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 1.5rem; font-weight: 300; line-height: 1.8;
   border: none; outline: none; resize: none;
   background: var(--card); color: var(--ink);
   min-height: 140px;
@@ -516,8 +516,8 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 }
 
 .annotated-text {
-  font-family: 'Noto Serif SC', serif;
-  font-size: 1.6rem; font-weight: 700;
+  font-family: 'Microsoft YaHei Light', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 1.5rem; font-weight: 300;
   line-height: 2.4;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -1038,6 +1038,10 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
       ℹ️ 只有序号大于阈值（未学）的字才会标注拼音。阈值：<strong id="threshold-hint">未设置</strong>
     </div>
 
+    <div class="learned-sticky-bar">
+      <button class="sync-btn" id="sync-scroll-toggle-btn" onclick="toggleSyncScroll()">🔗 同步滚动：开</button>
+    </div>
+
     <div class="annotate-cols">
       <div class="annotate-col">
         <div class="textarea-wrap">
@@ -1047,7 +1051,8 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
           </div>
           <textarea class="sentence-input" id="sentence-input"
                     rows="4" placeholder="在此输入或粘贴需要标注的中文句子，自动生成注音…"
-                    oninput="onSentenceInput()"></textarea>
+                    oninput="onSentenceInput()"
+                    onscroll="syncScrollFrom(this, document.getElementById('annotate-result-wrap'))"></textarea>
         </div>
       </div>
 
@@ -2010,9 +2015,29 @@ function onSentenceInput() {
   annotateDebounceTimer = setTimeout(annotateSentence, 150);
 }
 
+// ── SYNC SCROLL ──
+let syncScrollEnabled = true;
+let isSyncingScroll = false;
+
+function toggleSyncScroll() {
+  syncScrollEnabled = !syncScrollEnabled;
+  const btn = document.getElementById('sync-scroll-toggle-btn');
+  if (btn) btn.textContent = syncScrollEnabled ? '🔗 同步滚动：开' : '🔗 同步滚动：关';
+}
+
+function syncScrollFrom(sourceEl, targetEl) {
+  if (!syncScrollEnabled || isSyncingScroll || !sourceEl || !targetEl) return;
+  const sourceMax = sourceEl.scrollHeight - sourceEl.clientHeight;
+  const targetMax = targetEl.scrollHeight - targetEl.clientHeight;
+  if (sourceMax <= 0 || targetMax <= 0) return;
+  isSyncingScroll = true;
+  targetEl.scrollTop = (sourceEl.scrollTop / sourceMax) * targetMax;
+  requestAnimationFrame(() => { isSyncingScroll = false; });
+}
+
 function showEmptyAnnotateState() {
   document.getElementById('annotate-result').innerHTML = `
-    <div class="annotated-wrap">
+    <div class="annotated-wrap" id="annotate-result-wrap" onscroll="syncScrollFrom(this, document.getElementById('sentence-input'))">
       <div class="empty-state" style="padding:20px 0;">
         <span class="e-icon">✍️</span>
         <p>输入句子后自动显示拼音注音。</p>
@@ -2115,26 +2140,16 @@ function annotateSentence() {
   const summaryText = hasFlag ? `📖 ${summaryParts.join('，')}` : '✅ 全部在学习范围内';
 
   container.innerHTML = `
-    <div class="annotated-wrap">
+    <div class="annotated-wrap" id="annotate-result-wrap" onscroll="syncScrollFrom(this, document.getElementById('sentence-input'))">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:6px;">
         <span style="font-size:0.78rem;font-weight:700;color:${summaryColor};">${summaryText}</span>
         <span style="font-size:0.75rem;color:#bbb;">阈值：${threshold === 9999 ? '未设置' : threshold}</span>
       </div>
       <div class="annotated-text">${html}</div>
       <div class="result-actions" style="margin-top:16px;">
-        <button class="action-btn" onclick="copyOriginalText()">📋 复制原文</button>
         <button class="action-btn" onclick="copyAnnotatedText()">📋 复制带注音文本</button>
       </div>
     </div>`;
-}
-
-function copyOriginalText() {
-  const text = document.getElementById('sentence-input').value;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = event.target;
-    btn.textContent = '✅ 已复制';
-    setTimeout(() => btn.textContent = '📋 复制原文', 1500);
-  });
 }
 
 function copyAnnotatedText() {
