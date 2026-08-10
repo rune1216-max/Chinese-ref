@@ -973,7 +973,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
     📖 已学词语
   </button>
   <button class="tab" onclick="switchTab('annotate')" id="tab-annotate">
-    📝 注音批注
+    📝 添加拼音
   </button>
 </div>
 
@@ -1981,6 +1981,22 @@ function isChinese(ch) {
   return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(ch);
 }
 
+// 判断括号内内容是否为拼音：不含中文字符，且只由拼音字母（含声调符号/ü）、
+// 空格、斜杠（多音字分隔）、撇号（如 xi'an）、连字符、声调数字(1-5)组成
+function looksLikePinyin(content) {
+  const trimmed = content.trim();
+  if (!trimmed) return false;
+  if (/[\u4e00-\u9fff\u3400-\u4dbf]/.test(trimmed)) return false;
+  return /^[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü\s/'\-1-5]+$/.test(trimmed);
+}
+
+// 去掉原文里已有的拼音括号注音（半角/全角括号均支持），保留其余括号原样
+function stripExistingPinyin(text) {
+  return text.replace(/[（(]([^（）()]*)[）)]/g, (match, inner) =>
+    looksLikePinyin(inner) ? '' : match
+  );
+}
+
 // 字符状态：notFound = 不在 Characters 表中；unknown = 在表中但序号 > 阈值（未学）
 function getCharStatus(ch) {
   const entry = charMap[ch];
@@ -1994,8 +2010,7 @@ function onSentenceInput() {
   annotateDebounceTimer = setTimeout(annotateSentence, 150);
 }
 
-function clearSentence() {
-  document.getElementById('sentence-input').value = '';
+function showEmptyAnnotateState() {
   document.getElementById('annotate-result').innerHTML = `
     <div class="annotated-wrap">
       <div class="empty-state" style="padding:20px 0;">
@@ -2005,12 +2020,22 @@ function clearSentence() {
     </div>`;
 }
 
+function clearSentence() {
+  document.getElementById('sentence-input').value = '';
+  showEmptyAnnotateState();
+}
+
 function annotateSentence() {
-  const text = document.getElementById('sentence-input').value;
+  const rawText = document.getElementById('sentence-input').value;
+  const text = stripExistingPinyin(rawText);
   const container = document.getElementById('annotate-result');
 
+  if (!rawText.trim()) {
+    showEmptyAnnotateState();
+    return;
+  }
   if (!text.trim()) {
-    clearSentence();
+    container.innerHTML = `<div class="no-result"><span class="no-icon">🔍</span>括号内容已识别为拼音并清除，未剩余可标注的文字</div>`;
     return;
   }
   if (allCharData.length === 0) {
