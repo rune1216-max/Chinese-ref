@@ -450,6 +450,13 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
     min-height: 0;
     overflow-y: auto;
   }
+  .annotate-cols #annotate-result {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
   .annotate-cols .annotated-wrap {
     flex: 1 1 auto;
     min-height: 0;
@@ -484,7 +491,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 .sentence-input {
   width: 100%; padding: 16px;
   font-family: 'Microsoft YaHei Light', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  font-size: 1.5rem; font-weight: 300; line-height: 1.8;
+  font-size: 1.1rem; font-weight: 300; line-height: 1.8;
   border: none; outline: none; resize: none;
   background: var(--card); color: var(--ink);
   min-height: 140px;
@@ -517,7 +524,7 @@ main { max-width: 720px; margin: 0 auto; padding: 0 16px 24px; position: relativ
 
 .annotated-text {
   font-family: 'Microsoft YaHei Light', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  font-size: 1.5rem; font-weight: 300;
+  font-size: 1.1rem; font-weight: 300;
   line-height: 2.4;
   word-break: break-word;
   overflow-wrap: break-word;
