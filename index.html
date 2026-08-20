@@ -1590,9 +1590,12 @@ async function reloadData() {
 }
 
 // ── SEARCH ───────────────────────────────────────────────────────────────────
+let charSearchDebounceTimer = null;
 function onCharInput() {
-  const v = document.getElementById('char-input').value;
-  if (v.length > 1) document.getElementById('char-input').value = v[v.length - 1];
+  const el = document.getElementById('char-input');
+  if (el.value.length > 1) el.value = el.value[el.value.length - 1];
+  clearTimeout(charSearchDebounceTimer);
+  charSearchDebounceTimer = setTimeout(searchChar, 150);
 }
 
 function searchChar() {
