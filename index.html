@@ -1569,6 +1569,18 @@ async function reloadData() {
 
     localStorage.setItem('chineseAppData', JSON.stringify({ allCharData, allWordData, savedAt: Date.now() }));
     buildMaps();
+
+    const unsyncedCount = countUnsyncedRecords();
+    if (unsyncedCount > 0) {
+      const proceed = confirm(
+        `本地有 ${unsyncedCount} 条测试记录尚未同步到 Sheets，继续「重新加载」将用 Sheets 上的数据覆盖，这些记录会丢失。\n\n` +
+        `建议先点「☁️ 同步到 Sheets」再重新加载。\n\n是否仍要继续覆盖？`
+      );
+      if (!proceed) {
+        setStatus('ok', `${allCharData.length} 字 · ${allWordData.length} 词（测试记录未覆盖，仍有 ${unsyncedCount} 条待同步）`);
+        return;
+      }
+    }
     restoreTestsFromSheets(data.tests || [], true);
     setStatus('ok', `${allCharData.length} 字 · ${allWordData.length} 词`);
   } catch(err) {
@@ -1678,6 +1690,26 @@ function loadTestData() {
   } catch(e) {
     testData = {};
   }
+
+  // Migrate legacy records (no `synced` field) → treat as unsynced.
+  let migrated = false;
+  Object.values(testData).forEach(records => {
+    records.forEach(r => {
+      if (r.synced === undefined) { r.synced = false; migrated = true; }
+    });
+  });
+  if (migrated) saveTestData();
+
+  // Auto-retry any unsynced records on startup (silent, best-effort).
+  if (countUnsyncedRecords() > 0) syncTestsToSheets(true);
+}
+
+function countUnsyncedRecords() {
+  let n = 0;
+  Object.values(testData).forEach(records => {
+    records.forEach(r => { if (!r.synced) n++; });
+  });
+  return n;
 }
 
 function saveTestData() {
@@ -1689,7 +1721,8 @@ function recordTest(ch, result) {
   undoState = { ch, snapshot: (testData[ch] || []).map(r => ({...r})) };
 
   if (!testData[ch]) testData[ch] = [];
-  testData[ch].push({ timestamp: Date.now(), result });
+  const newRecord = { timestamp: Date.now(), result, synced: false };
+  testData[ch].push(newRecord);
   saveTestData();
 
   // Update tile in place
@@ -1727,10 +1760,10 @@ function recordTest(ch, result) {
   const histSection = document.getElementById('test-history-' + ch);
   if (histSection) histSection.outerHTML = renderTestHistoryHtml(ch);
 
-  showUndoToast(ch, result);
+  showUndoToast(ch, result, newRecord.timestamp);
 }
 
-function showUndoToast(ch, result) {
+function showUndoToast(ch, result, timestamp) {
   clearTimeout(undoTimer);
   const label = result === 1 ? '✓' : '✗';
   document.getElementById('undo-msg').textContent = `已记录「${ch}」${label}`;
@@ -1739,7 +1772,34 @@ function showUndoToast(ch, result) {
   undoTimer = setTimeout(() => {
     toast.classList.remove('visible');
     undoState = null;
+    syncSingleRecord(ch, timestamp); // not undone within 3s → sync this record now
   }, 3000);
+}
+
+// Send exactly one record to Sheets. Marks it synced on success; leaves
+// it unsynced (for later retry via button or next app open) on failure.
+async function syncSingleRecord(ch, timestamp) {
+  const records = testData[ch];
+  if (!records) return;
+  const rec = records.find(r => r.timestamp === timestamp);
+  if (!rec || rec.synced) return;
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'syncTestsIncremental',
+        records: [{ char: ch, timestamp: rec.timestamp, result: rec.result }],
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      rec.synced = true;
+      saveTestData();
+    }
+  } catch (err) {
+    // Silent failure — record stays unsynced, caught by later retry paths.
+  }
 }
 
 function undoLastTest() {
@@ -1859,23 +1919,30 @@ function restoreTestsFromSheets(testsRaw, forced = false) {
     const res = Number(r[2]);
     if (!ch) return;
     if (!testData[ch]) testData[ch] = [];
-    testData[ch].push({ timestamp: ts, result: res });
+    testData[ch].push({ timestamp: ts, result: res, synced: true });
   });
   saveTestData();
 }
 
-async function syncTestsToSheets() {
-  const btn = document.getElementById('sync-btn');
-  const statusEl = document.getElementById('sync-status');
-  btn.disabled = true;
-  btn.textContent = '⏳ 同步中…';
-  statusEl.textContent = '';
+async function syncTestsToSheets(silent = false) {
+  const btn = silent ? null : document.getElementById('sync-btn');
+  const statusEl = document.getElementById('sync-status'); // exists even when panel hidden
 
-  // Collect ALL records (Apps Script will deduplicate by timestamp)
-  const records = [];
+  // Collect only unsynced records (much smaller than full history).
+  const targets = []; // { ch, record }
   Object.entries(testData).forEach(([ch, arr]) => {
-    arr.forEach(r => records.push({ char: ch, timestamp: r.timestamp, result: r.result }));
+    arr.forEach(r => { if (!r.synced) targets.push({ ch, record: r }); });
   });
+
+  if (targets.length === 0) {
+    if (!silent && statusEl) statusEl.textContent = '✅ 已是最新';
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 同步中…'; }
+  if (!silent && statusEl) statusEl.textContent = '';
+
+  const records = targets.map(t => ({ char: t.ch, timestamp: t.record.timestamp, result: t.record.result }));
 
   try {
     const res = await fetch(APPS_SCRIPT_URL, {
@@ -1884,17 +1951,16 @@ async function syncTestsToSheets() {
     });
     const data = await res.json();
     if (data.success) {
-      statusEl.textContent = `✅ +${data.added} 条新增`;
-      btn.textContent = '☁️ 同步到 Sheets';
+      targets.forEach(t => { t.record.synced = true; });
+      saveTestData();
+      if (statusEl) statusEl.textContent = `✅ +${data.added} 条新增`;
     } else {
-      statusEl.textContent = '❌ 同步失败';
-      btn.textContent = '☁️ 同步到 Sheets';
+      if (statusEl) statusEl.textContent = '❌ 同步失败';
     }
   } catch(err) {
-    statusEl.textContent = '❌ 网络错误';
-    btn.textContent = '☁️ 同步到 Sheets';
+    if (statusEl) statusEl.textContent = '❌ 网络错误';
   }
-  btn.disabled = false;
+  if (btn) { btn.disabled = false; btn.textContent = '☁️ 同步到 Sheets'; }
 }
 
 // ── CHAR MEANING ──
